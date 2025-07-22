@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:background="#FFFFFF"
+    android:orientation="horizontal"
+    android:gravity="center">
+
+    <!-- Template tab -->
+    <LinearLayout
+        android:id="@+id/navTemplate"
+        android:layout_weight="1"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_gallery" />
+        <TextView
+            android:text="Template"
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"/>
+    </LinearLayout>
+
+    <!-- Middle Add button -->
+
+    <!-- Project tab -->
+    <ImageView
+        android:id="@+id/navAdd"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="-20dp"
+        android:background="@drawable/bg_circle"
+        android:padding="12dp"
+        android:src="@android:drawable/ic_input_add" />
+
+    <LinearLayout
+        android:id="@+id/navProject"
+        android:layout_weight="1"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_agenda" />
+        <TextView
+            android:text="Project"
+            android:textSize="12sp"
+            android:textColor="#666"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"/>
+    </LinearLayout>
+</LinearLayout>
