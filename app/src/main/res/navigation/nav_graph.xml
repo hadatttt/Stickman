@@ -9,7 +9,10 @@
     <fragment
         android:id="@+id/HomeFragment"
         android:name="com.hadat.stickman.ui.home.HomeFragment"
+<<<<<<< HEAD
         android:label="home"
+=======
+>>>>>>> 6d571fd (feat : add ui)
         tools:layout="@layout/fragment_home">
         <action
             android:id="@+id/action_HomeFragment_to_DrawingFragment"
@@ -23,7 +26,10 @@
     <fragment
         android:id="@+id/DrawingFragment"
         android:name="com.hadat.stickman.ui.home.DrawingFragment"
+<<<<<<< HEAD
         android:label="drawing"
+=======
+>>>>>>> 6d571fd (feat : add ui)
         tools:layout="@layout/fragment_drawing">
         <action
             android:id="@+id/action_DrawingFragment_to_HomeFragment"

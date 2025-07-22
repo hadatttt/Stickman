@@ -173,6 +173,7 @@ class DrawingView @JvmOverloads constructor(
      */
     fun getEraserSize(): Float = eraserSize
 
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         bitmap?.recycle()
@@ -186,7 +187,11 @@ class DrawingView @JvmOverloads constructor(
 
         // Áp dụng các biến đổi để phóng to/thu nhỏ và di chuyển
         canvas.save()
-        canvas.scale(scaleFactor, scaleFactor)
+//<<<<<<< HEAD
+//        canvas.scale(scaleFactor, scaleFactor)
+//=======
+//      canvas.scale(scaleFactor, scaleFactor)
+//>>>>>>> 6d571fd (feat : add ui)
         canvas.translate(translateX / scaleFactor, translateY / scaleFactor)
 
         // Vẽ bitmap chứa các nét vẽ (trong suốt)
@@ -207,7 +212,11 @@ class DrawingView @JvmOverloads constructor(
 
         when (event.pointerCount) {
             1 -> handleSingleTouch(event, x, y)
-            2 -> handleMultiTouch(event)
+//<<<<<<< HEAD
+//            2 -> handleMultiTouch(event)
+//=======
+////            2 -> handleMultiTouch(event)
+//>>>>>>> 6d571fd (feat : add ui)
         }
         return true
     }
@@ -222,38 +231,73 @@ class DrawingView @JvmOverloads constructor(
         }
     }
 
-    private fun handleMultiTouch(event: MotionEvent) {
-        isMultiTouch = true
-        when (event.actionMasked) {
-            MotionEvent.ACTION_POINTER_DOWN -> {
-                lastTouchX = (event.getX(0) + event.getX(1)) / 2
-                lastTouchY = (event.getY(0) + event.getY(1)) / 2
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val newX = (event.getX(0) + event.getX(1)) / 2
-                val newY = (event.getY(0) + event.getY(1)) / 2
-                translateX += newX - lastTouchX
-                translateY += newY - lastTouchY
-                lastTouchX = newX
-                lastTouchY = newY
-
-                // Tính toán tỷ lệ phóng to
-                val oldDist = distance(event, 0, 1)
-                val newDist = distance(event, 0, 1)
-                if (oldDist > 10f) {
-                    scaleFactor *= newDist / oldDist
-                    scaleFactor = scaleFactor.coerceIn(0.5f, 3f)
-                }
-                invalidate()
-            }
-        }
-    }
+//<<<<<<< HEAD
+//    private fun handleMultiTouch(event: MotionEvent) {
+//        isMultiTouch = true
+//        when (event.actionMasked) {
+//            MotionEvent.ACTION_POINTER_DOWN -> {
+//                lastTouchX = (event.getX(0) + event.getX(1)) / 2
+//                lastTouchY = (event.getY(0) + event.getY(1)) / 2
+//            }
+//            MotionEvent.ACTION_MOVE -> {
+//                val newX = (event.getX(0) + event.getX(1)) / 2
+//                val newY = (event.getY(0) + event.getY(1)) / 2
+//                translateX += newX - lastTouchX
+//                translateY += newY - lastTouchY
+//                lastTouchX = newX
+//                lastTouchY = newY
+//
+//                // Tính toán tỷ lệ phóng to
+//                val oldDist = distance(event, 0, 1)
+//                val newDist = distance(event, 0, 1)
+//                if (oldDist > 10f) {
+//                    scaleFactor *= newDist / oldDist
+//                    scaleFactor = scaleFactor.coerceIn(0.5f, 3f)
+//                }
+//                invalidate()
+//            }
+//        }
+//    }
 
     private fun distance(event: MotionEvent, first: Int, second: Int): Float {
         val dx = event.getX(first) - event.getX(second)
         val dy = event.getY(first) - event.getY(second)
         return kotlin.math.sqrt(dx * dx + dy * dy)
     }
+//=======
+////    private fun handleMultiTouch(event: MotionEvent) {
+////        isMultiTouch = true
+////        when (event.actionMasked) {
+////            MotionEvent.ACTION_POINTER_DOWN -> {
+////                lastTouchX = (event.getX(0) + event.getX(1)) / 2
+////                lastTouchY = (event.getY(0) + event.getY(1)) / 2
+////            }
+////            MotionEvent.ACTION_MOVE -> {
+////                val newX = (event.getX(0) + event.getX(1)) / 2
+////                val newY = (event.getY(0) + event.getY(1)) / 2
+////                translateX += newX - lastTouchX
+////                translateY += newY - lastTouchY
+////                lastTouchX = newX
+////                lastTouchY = newY
+////
+////                // Tính toán tỷ lệ phóng to
+////                val oldDist = distance(event, 0, 1)
+////                val newDist = distance(event, 0, 1)
+////                if (oldDist > 10f) {
+////                    scaleFactor *= newDist / oldDist
+////                    scaleFactor = scaleFactor.coerceIn(0.5f, 3f)
+////                }
+////                invalidate()
+////            }
+////        }
+////    }
+//
+////    private fun distance(event: MotionEvent, first: Int, second: Int): Float {
+////        val dx = event.getX(first) - event.getX(second)
+////        val dy = event.getY(first) - event.getY(second)
+////        return kotlin.math.sqrt(dx * dx + dy * dy)
+////    }
+//>>>>>>> 6d571fd (feat : add ui)
 
     private fun handleDraw(event: MotionEvent, x: Float, y: Float) {
         when (event.action) {

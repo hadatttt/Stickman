@@ -11,6 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+<<<<<<< HEAD
         <!-- Ảnh hoặc DrawingView -->
         <ImageView
             android:id="@+id/imagePreview"
@@ -31,5 +32,24 @@
             android:layout_gravity="bottom|top|right"
             android:layout_margin="6dp"
             android:background="@drawable/bg_frame_selected" />
+=======
+        <ImageView
+            android:id="@+id/imgFrame"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/txtFrameNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|right"
+            android:layout_margin="8dp"
+            android:text="1"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:background="#80000000"
+            android:padding="4dp" />
+>>>>>>> 6d571fd (feat : add ui)
     </FrameLayout>
 </androidx.cardview.widget.CardView>

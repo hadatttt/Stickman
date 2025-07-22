@@ -43,7 +43,14 @@ class DrawingFragment : Fragment() {
 
         val args: DrawingFragmentArgs by navArgs()
         val itemModel = args.itemModel
+<<<<<<< HEAD
         drawingView = binding.drawingView
+=======
+        val frameCount = itemModel.frame
+        val imageUrl = itemModel.imageUrl
+        drawingView = binding.drawingView
+
+>>>>>>> 6d571fd (feat : add ui)
         viewModel.setDrawingView(drawingView, binding.backgroundImage)
 
         // Tải hình nền và thiết lập cho ImageView
