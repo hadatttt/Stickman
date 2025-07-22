@@ -11,29 +11,38 @@ import android.widget.SeekBar
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.hadat.stickman.databinding.FragmentDrawingBinding
 import com.hadat.stickman.ui.category.DrawingViewModel
+import com.hadat.stickman.ui.category.FrameAdapter
+import com.hadat.stickman.ui.model.FrameModel
 import com.skydoves.colorpickerview.ColorPickerDialog
 import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener
 
 /**
- * Fragment để xử lý giao diện vẽ, quan sát trạng thái ViewModel để cập nhật UI.
+ * Fragment xử lý giao diện vẽ, quan sát trạng thái ViewModel để cập nhật UI.
  */
 class DrawingFragment : Fragment() {
 
     private var _binding: FragmentDrawingBinding? = null
     private val binding get() = _binding!!
+
+    // ViewModel riêng của fragment này
     private val viewModel: DrawingViewModel by viewModels()
+
     private lateinit var drawingView: DrawingView
+    private lateinit var frameAdapter: FrameAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        // Inflate layout bằng ViewBinding
         _binding = FragmentDrawingBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -41,22 +50,21 @@ class DrawingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Lấy dữ liệu truyền vào (ItemModel)
         val args: DrawingFragmentArgs by navArgs()
         val itemModel = args.itemModel
-<<<<<<< HEAD
-        drawingView = binding.drawingView
-=======
+
         val frameCount = itemModel.frame
         val imageUrl = itemModel.imageUrl
         drawingView = binding.drawingView
 
->>>>>>> 6d571fd (feat : add ui)
+        // Thiết lập DrawingView và BackgroundImage cho ViewModel xử lý
         viewModel.setDrawingView(drawingView, binding.backgroundImage)
 
-        // Tải hình nền và thiết lập cho ImageView
+        // Tải ảnh nền với Glide và gán vào ImageView background
         Glide.with(this)
             .asBitmap()
-            .load(itemModel.imageUrl)
+            .load(imageUrl)
             .override(drawingView.width, drawingView.height)
             .into(object : CustomTarget<Bitmap>() {
                 override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
@@ -65,7 +73,6 @@ class DrawingFragment : Fragment() {
                 }
                 override fun onLoadCleared(placeholder: Drawable?) {
                     binding.backgroundImage.setImageDrawable(null)
-                    Toast.makeText(requireContext(), "Hình nền đã bị xóa", Toast.LENGTH_SHORT).show()
                 }
                 override fun onLoadFailed(errorDrawable: Drawable?) {
                     binding.backgroundImage.setImageDrawable(null)
@@ -73,12 +80,48 @@ class DrawingFragment : Fragment() {
                 }
             })
 
+        // Thiết lập RecyclerView với FrameAdapter
+        setupFrameRecyclerView(frameCount)
+
         setupObservers()
         setupToolbar()
         setupColorAndSizeControls()
         setupBottomControls()
     }
 
+    /**
+     * Thiết lập RecyclerView để hiển thị danh sách FrameModel
+     */
+    private fun setupFrameRecyclerView(frameCount: Int) {
+        // Kiểm tra frameCount hợp lệ
+        if (frameCount <= 0) {
+            Toast.makeText(requireContext(), "Số frame không hợp lệ", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Tạo danh sách FrameModel với ID tăng dần từ 1 đến frameCount
+        val frameList = (1..frameCount).map { id ->
+            FrameModel(id = id, previewBitmap = null)
+        }
+
+
+        // Khởi tạo FrameAdapter
+        frameAdapter = FrameAdapter(frameList) { position ->
+            // Xử lý khi người dùng chọn một frame
+            Toast.makeText(requireContext(), "Đã chọn frame ${frameList[position].id}", Toast.LENGTH_SHORT).show()
+            // Có thể thêm logic để chuyển đổi frame trong DrawingView
+            // Ví dụ: viewModel.switchToFrame(frameList[position])
+        }
+
+        // Thiết lập RecyclerView
+        binding.recyclerView.apply {
+            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+            adapter = frameAdapter
+        }
+    }
+    /**
+     * Quan sát LiveData trong ViewModel để cập nhật UI
+     */
     private fun setupObservers() {
         viewModel.mode.observe(viewLifecycleOwner) { mode ->
             updateButtonStates(
@@ -108,6 +151,9 @@ class DrawingFragment : Fragment() {
         }
     }
 
+    /**
+     * Thiết lập các nút trên toolbar để chọn mode, undo/redo, clear
+     */
     private fun setupToolbar() {
         binding.btnBrush.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -150,6 +196,9 @@ class DrawingFragment : Fragment() {
         }
     }
 
+    /**
+     * Thiết lập chọn màu và thay đổi kích thước, độ trong suốt
+     */
     private fun setupColorAndSizeControls() {
         binding.colorPreview.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -169,6 +218,7 @@ class DrawingFragment : Fragment() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) viewModel.setSize(progress)
             }
+
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
@@ -177,29 +227,33 @@ class DrawingFragment : Fragment() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) viewModel.setOpacity(progress)
             }
+
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
     }
 
+    /**
+     * Nút Back để quay lại HomeFragment
+     */
     private fun setupBottomControls() {
         binding.btnBack.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            requireActivity().onBackPressedDispatcher.onBackPressed()
+            val action = DrawingFragmentDirections.actionDrawingFragmentToHomeFragment()
+            findNavController().navigate(action)
         }
-
-//        binding.btnPlay.setOnClickListener {
-//            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-//        }
-//
-//        binding.btnCreate.setOnClickListener {
-//            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-//            viewModel.saveDrawing()
-//        }
     }
 
+    /**
+     * Cập nhật trạng thái nút được chọn (highlight)
+     */
     private fun updateButtonStates(selectedButton: View) {
-        listOf(binding.btnBrush, binding.btnEraser, binding.btnFill, binding.btnRectangle, binding.btnCircle).forEach {
+        listOf(
+            binding.btnBrush,
+            binding.btnEraser,
+            binding.btnFill,
+            binding.btnRectangle,
+            binding.btnCircle
+        ).forEach {
             it.isSelected = it == selectedButton
             it.alpha = if (it.isSelected) 1f else 0.5f
         }

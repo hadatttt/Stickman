@@ -68,4 +68,5 @@ dependencies {
 
     // Color Picker View
     implementation("com.github.skydoves:colorpickerview:2.2.4")
+
 }

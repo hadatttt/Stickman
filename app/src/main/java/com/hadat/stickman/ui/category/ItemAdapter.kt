@@ -19,12 +19,7 @@ class ItemAdapter(
         val imgThumb: ImageView = itemView.findViewById(R.id.imgThumb)
         val txtTitle: TextView = itemView.findViewById(R.id.txtTitle)
         val txtLevel: TextView = itemView.findViewById(R.id.txtLevel)
-<<<<<<< HEAD
-=======
-
         val txtFrame: TextView = itemView.findViewById(R.id.txtFrame)
->>>>>>> 6d571fd (feat : add ui)
-        // Không cần txtCategory vì không hiển thị
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewHolder {
@@ -35,25 +30,12 @@ class ItemAdapter(
 
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
         val item = itemList[position]
-
-<<<<<<< HEAD
-        // Load ảnh từ URL bằng Glide
-        Glide.with(holder.itemView.context)
-            .load(item.imageUrl)
-            .centerCrop()
-//            .placeholder(R.drawable.placeholder)  // ảnh tạm thời
-//            .error(R.drawable.error_image)        // ảnh lỗi
-            .into(holder.imgThumb)
-
-=======
-        // Load ảnh từ URL bằng Glide, resize về 120x120
         Glide.with(holder.itemView.context)
             .load(item.imageUrl)
             .centerCrop()
             .override(100, 100)
             .into(holder.imgThumb)
         holder.txtFrame.text="Frame: ${item.frame}"
->>>>>>> 6d571fd (feat : add ui)
         holder.txtTitle.text = item.title
         holder.txtLevel.text = "Level: ${item.level}"
         holder.itemView.setOnClickListener { onItemClick(item) }

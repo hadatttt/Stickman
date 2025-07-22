@@ -1,15 +1,4 @@
-<<<<<<< HEAD
 package com.hadat.stickman.ui.category
-
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-
-class HomeViewModel ( application : Application): AndroidViewModel(application) {
-
-}
-=======
-package com.hadat.stickman.ui.home
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -47,4 +36,4 @@ class HomeViewModel : ViewModel() {
         _items.value = if (category == "All") allItems else allItems.filter { it.category == category }
     }
 }
->>>>>>> 6d571fd (feat : add ui)
+

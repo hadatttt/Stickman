@@ -17,17 +17,9 @@
 
         <ImageView
             android:id="@+id/imgThumb"
-<<<<<<< HEAD
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-=======
-            android:layout_width="100dp"
-            android:layout_height="100dp"
->>>>>>> 6d571fd (feat : add ui)
-            android:layout_weight="1"
-            android:scaleType="centerInside" />
-
-        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"></ImageView>
+            <TextView
             android:id="@+id/txtTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -41,15 +33,13 @@
             android:layout_height="wrap_content"
             android:text="Level: Easy"
             android:textColor="@android:color/holo_green_dark" />
-<<<<<<< HEAD
-=======
+
         <TextView
             android:id="@+id/txtFrame"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Frame:0"
             android:textColor="@android:color/black" />
->>>>>>> 6d571fd (feat : add ui)
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>

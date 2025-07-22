@@ -135,7 +135,6 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Thanh chọn màu và stroke -->
-<<<<<<< HEAD
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/colorSizeToolbar"
         android:layout_width="match_parent"
@@ -146,6 +145,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+
         <View
             android:id="@+id/colorPreview"
             android:layout_width="34dp"
@@ -153,35 +153,9 @@
             android:layout_marginStart="16dp"
             android:background="#000000"
             android:clickable="true"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@+id/textOpacity"
-            app:layout_constraintStart_toStartOf="parent" />
-=======
-
-    <!-- Background -->
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/colorSizeToolbar"
-        android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:background="#E0E0E0"
-        android:elevation="2dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/topToolbar">
-
-        <View
-            android:id="@+id/colorPreview"
-            android:layout_width="21dp"
-            android:layout_height="21dp"
-            android:layout_marginStart="32dp"
-            android:background="#000000"
-            android:clickable="true"
             app:layout_constraintBottom_toTopOf="@+id/textOpacity"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
->>>>>>> 6d571fd (feat : add ui)
 
         <SeekBar
             android:id="@+id/seekBarStrokeSize"
@@ -192,33 +166,21 @@
             android:max="50"
             android:min="1"
             android:progress="10"
-<<<<<<< HEAD
             app:layout_constraintTop_toTopOf="@id/colorPreview"
             app:layout_constraintStart_toEndOf="@id/colorPreview"
             app:layout_constraintEnd_toEndOf="parent" />
-=======
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/colorPreview"
-            app:layout_constraintTop_toTopOf="@id/colorPreview" />
->>>>>>> 6d571fd (feat : add ui)
+
 
         <TextView
             android:id="@+id/textOpacity"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-<<<<<<< HEAD
             android:text="Độ trong suốt:"
             android:textColor="#000000"
             app:layout_constraintTop_toBottomOf="@id/colorPreview"
             app:layout_constraintStart_toStartOf="parent" />
-=======
-            android:layout_marginTop="8dp"
-            android:text="Độ trong suốt:"
-            android:textColor="#000000"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/colorPreview" />
->>>>>>> 6d571fd (feat : add ui)
+
 
         <SeekBar
             android:id="@+id/seekBarOpacity"
@@ -228,22 +190,13 @@
             android:layout_marginEnd="8dp"
             android:max="100"
             android:progress="100"
-<<<<<<< HEAD
             app:layout_constraintTop_toTopOf="@id/textOpacity"
             app:layout_constraintStart_toEndOf="@id/textOpacity"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toBottomOf="@id/textOpacity" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Background -->
-=======
-            app:layout_constraintBottom_toBottomOf="@id/textOpacity"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/textOpacity"
-            app:layout_constraintTop_toTopOf="@id/textOpacity" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
 
->>>>>>> 6d571fd (feat : add ui)
     <ImageView
         android:id="@+id/background_image"
         android:layout_width="match_parent"
@@ -255,22 +208,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-<<<<<<< HEAD
-    <!-- Vùng vẽ -->
 
-    <!-- RecyclerView -->
-=======
-    <!-- Vùng vẽ động -->
-
->>>>>>> 6d571fd (feat : add ui)
     <com.hadat.stickman.ui.home.DrawingView
         android:id="@+id/drawing_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-<<<<<<< HEAD
         android:background="@android:color/transparent"
-=======
->>>>>>> 6d571fd (feat : add ui)
         app:layout_constraintBottom_toBottomOf="@id/background_image"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
@@ -288,9 +231,5 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:listitem="@layout/item_frame" />
-<<<<<<< HEAD
-=======
 
-
->>>>>>> 6d571fd (feat : add ui)
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -5,29 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-<<<<<<< HEAD
-import com.hadat.stickman.databinding.FragmentHomeBinding
-
-/**
- * A simple [androidx.fragment.app.Fragment] subclass as the second destination in the navigation.
- */
-class HomeFragment : Fragment() {
-
-    private var _binding: FragmentHomeBinding? = null
-
-    // This property is only valid between onCreateView and
-    // onDestroyView.
-    private val binding get() = _binding!!
-
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-
-        _binding = FragmentHomeBinding.inflate(inflater, container, false)
-        return binding.root
-
-=======
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
@@ -36,7 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.hadat.stickman.databinding.FragmentHomeBinding
 import com.hadat.stickman.ui.category.CategoryAdapter
 import com.hadat.stickman.ui.category.ItemAdapter
-import com.hadat.stickman.ui.model.ItemModel
+import com.hadat.stickman.ui.category.HomeViewModel
 
 class HomeFragment : Fragment() {
 
@@ -54,14 +31,11 @@ class HomeFragment : Fragment() {
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
->>>>>>> 6d571fd (feat : add ui)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-<<<<<<< HEAD
-=======
         // Setup Category RecyclerView
         categoryAdapter = CategoryAdapter(viewModel.categories) { selectedCategory ->
             viewModel.filterItems(selectedCategory)
@@ -81,15 +55,10 @@ class HomeFragment : Fragment() {
         viewModel.items.observe(viewLifecycleOwner, Observer { items ->
             itemAdapter.updateData(items)
         })
->>>>>>> 6d571fd (feat : add ui)
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 6d571fd (feat : add ui)

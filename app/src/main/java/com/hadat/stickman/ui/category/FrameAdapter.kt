@@ -11,11 +11,12 @@ import com.hadat.stickman.ui.model.FrameModel
 
 class FrameAdapter(
     private val frameList: List<FrameModel>,
-    private val onItemClick: (Int) -> Unit // Callback khi frame được chọn
+    private val onItemClick: (Int) -> Unit
 ) : RecyclerView.Adapter<FrameAdapter.FrameViewHolder>() {
 
     inner class FrameViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val previewImage: ImageView = itemView.findViewById(R.id.imgFrame)
+        val txtFrameId: TextView = itemView.findViewById(R.id.txtFrameID) // thêm dòng này
 
         init {
             itemView.setOnClickListener {
@@ -24,6 +25,7 @@ class FrameAdapter(
         }
 
         fun bind(frame: FrameModel) {
+            txtFrameId.text = "${frame.id}" // hiển thị id
             frame.previewBitmap?.let { previewImage.setImageBitmap(it) }
         }
     }
@@ -40,3 +42,4 @@ class FrameAdapter(
 
     override fun getItemCount(): Int = frameList.size
 }
+
