@@ -31,7 +31,7 @@ class ItemAdapter(
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
         val item = itemList[position]
         Glide.with(holder.itemView.context)
-            .load(item.imageUrl)
+            .load(item.imageUrl.first())
             .centerCrop()
             .override(100, 100)
             .into(holder.imgThumb)

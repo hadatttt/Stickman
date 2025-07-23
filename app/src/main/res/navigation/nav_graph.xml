@@ -5,7 +5,6 @@
     android:id="@+id/nav_graph"
     app:startDestination="@id/HomeFragment">
 
-
     <fragment
         android:id="@+id/HomeFragment"
         android:name="com.hadat.stickman.ui.home.HomeFragment"
@@ -13,9 +12,9 @@
         tools:layout="@layout/fragment_home">
         <action
             android:id="@+id/action_HomeFragment_to_DrawingFragment"
-            app:destination="@id/DrawingFragment">
-        </action>
+            app:destination="@id/DrawingFragment" />
     </fragment>
+
     <fragment
         android:id="@+id/DrawingFragment"
         android:name="com.hadat.stickman.ui.home.DrawingFragment"
@@ -28,5 +27,59 @@
             android:name="itemModel"
             app:argType="com.hadat.stickman.ui.model.ItemModel"
             app:nullable="false" />
+        <action
+            android:id="@+id/action_DrawingFragment_to_previewFragment"
+            app:destination="@id/PreviewFragment" />
+        <action
+            android:id="@+id/action_DrawingFragment_to_exportFragment"
+            app:destination="@id/exportFragment" />
     </fragment>
+
+    <fragment
+        android:id="@+id/PreviewFragment"
+        android:name="com.hadat.stickman.ui.home.PreviewFragment"
+        android:label="PreviewFragment">
+        <argument
+            android:name="bitmapPathList"
+            app:argType="string[]"
+            app:nullable="true" /> />
+        <action
+            android:id="@+id/action_PreviewFragment_to_DrawingFragment"
+            app:destination="@id/DrawingFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/exportFragment"
+        android:name="com.hadat.stickman.ui.home.ExportFragment"
+        android:label="Export">
+        <argument
+            android:name="bitmapPathList"
+            app:argType="string[]"
+            app:nullable="true" /> />
+        <argument
+            android:name="idBackground"
+            app:argType="integer"
+            android:defaultValue="-1" />
+
+        <action
+            android:id="@+id/action_exportFragment_to_backgroundSelectionFragment"
+            app:destination="@id/backgroundSelectionFragment" />
+        <action
+            android:id="@+id/action_exportFragment_to_DrawingFragment"
+            app:destination="@id/DrawingFragment" />
+        <action
+            android:id="@+id/action_exportFragment_to_DrawingFragment2"
+            app:destination="@id/DrawingFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/backgroundSelectionFragment"
+        android:name="com.hadat.stickman.ui.home.BackgroundSelectionFragment"
+        android:label="Export">
+
+        <action
+            android:id="@+id/action_backgroundSelectionFragment_to_exportFragment"
+            app:destination="@id/exportFragment" />
+    </fragment>
+
 </navigation>

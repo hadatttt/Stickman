@@ -24,6 +24,9 @@ import com.hadat.stickman.ui.category.FrameAdapter
 import com.hadat.stickman.ui.model.FrameModel
 import com.skydoves.colorpickerview.ColorPickerDialog
 import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 
 class DrawingFragment : Fragment() {
 
@@ -52,26 +55,40 @@ class DrawingFragment : Fragment() {
         val imageUrl = itemModel.imageUrl
         drawingView = binding.drawingView
 
-        drawingView.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+        drawingView.viewTreeObserver.addOnGlobalLayoutListener(object :
+            ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 drawingView.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 viewModel.setDrawingView(drawingView, binding.backgroundImage, 1)
 
                 Glide.with(this@DrawingFragment)
                     .asBitmap()
-                    .load(imageUrl)
+                    .load(imageUrl.first())
                     .override(drawingView.width, drawingView.height)
                     .into(object : CustomTarget<Bitmap>() {
-                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        override fun onResourceReady(
+                            resource: Bitmap,
+                            transition: Transition<in Bitmap>?
+                        ) {
                             binding.backgroundImage.setImageBitmap(resource)
-                            Toast.makeText(requireContext(), "Hình nền được thiết lập", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                requireContext(),
+                                "Hình nền được thiết lập",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
+
                         override fun onLoadCleared(placeholder: Drawable?) {
                             binding.backgroundImage.setImageDrawable(null)
                         }
+
                         override fun onLoadFailed(errorDrawable: Drawable?) {
                             binding.backgroundImage.setImageDrawable(null)
-                            Toast.makeText(requireContext(), "Không thể tải hình nền", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                requireContext(),
+                                "Không thể tải hình nền",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     })
             }
@@ -97,7 +114,8 @@ class DrawingFragment : Fragment() {
 
         frameAdapter = FrameAdapter(frameList) { drawingId ->
             viewModel.switchDrawing(drawingId)
-            Toast.makeText(requireContext(), "Đã chuyển sang frame $drawingId", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Đã chuyển sang frame $drawingId", Toast.LENGTH_SHORT)
+                .show()
         }
 
         binding.recyclerView.apply {
@@ -204,10 +222,12 @@ class DrawingFragment : Fragment() {
                 .show()
         }
 
-        binding.seekBarStrokeSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        binding.seekBarStrokeSize.setOnSeekBarChangeListener(object :
+            SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) viewModel.setSize(progress, viewModel.currentDrawingId.value ?: 1)
             }
+
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
@@ -216,6 +236,7 @@ class DrawingFragment : Fragment() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) viewModel.setOpacity(progress, viewModel.currentDrawingId.value ?: 1)
             }
+
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
@@ -224,6 +245,45 @@ class DrawingFragment : Fragment() {
     private fun setupBottomControls() {
         binding.btnBack.setOnClickListener {
             val action = DrawingFragmentDirections.actionDrawingFragmentToHomeFragment()
+            findNavController().navigate(action)
+        }
+
+        binding.btnPreview.setOnClickListener {
+            viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
+            val drawingList = viewModel.getDrawingList()
+
+            val bitmapList = drawingList.mapNotNull { it.bitmap }
+
+            if (bitmapList.isEmpty()) {
+                Toast.makeText(requireContext(), "Không có frame nào để gửi", Toast.LENGTH_SHORT)
+                    .show()
+                return@setOnClickListener
+            }
+            // Lưu bitmap vào cache, lấy danh sách đường dẫn
+            val bitmapPathList = saveBitmapsToCache(requireContext(), bitmapList)
+            // Truyền danh sách đường dẫn qua SafeArgs
+            val action =
+                DrawingFragmentDirections.actionDrawingFragmentToPreviewFragment(bitmapPathList.toTypedArray())
+            findNavController().navigate(action)
+        }
+        binding.btnFinish.setOnClickListener {
+            viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
+            val drawingList = viewModel.getDrawingList()
+
+
+            // Lấy danh sách bitmap không null
+            val bitmapList = drawingList.mapNotNull { it.bitmap }
+
+            if (bitmapList.isEmpty()) {
+                Toast.makeText(requireContext(), "Không có frame nào để gửi", Toast.LENGTH_SHORT)
+                    .show()
+                return@setOnClickListener
+            }
+            // Lưu bitmap vào cache, lấy danh sách đường dẫn
+            val bitmapPathList = saveBitmapsToCache(requireContext(), bitmapList)
+            // Truyền danh sách đường dẫn qua SafeArgs
+            val action =
+                DrawingFragmentDirections.actionDrawingFragmentToExportFragment(bitmapPathList.toTypedArray())
             findNavController().navigate(action)
         }
     }
@@ -244,5 +304,26 @@ class DrawingFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    // Hàm lưu danh sách Bitmap vào bộ nhớ cache, trả về danh sách đường dẫn file
+    private fun saveBitmapsToCache(
+        context: android.content.Context,
+        bitmaps: List<Bitmap>
+    ): List<String> {
+        val paths = mutableListOf<String>()
+        bitmaps.forEachIndexed { index, bitmap ->
+            try {
+                val file = File(context.cacheDir, "drawing_frame_$index.png")
+                FileOutputStream(file).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    out.flush()
+                }
+                paths.add(file.absolutePath)
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        }
+        return paths
     }
 }

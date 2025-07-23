@@ -12,18 +12,109 @@ class HomeViewModel : ViewModel() {
     )
     val categories: List<String> = _categories
 
-    private val allItems = listOf(
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Hot Story 1", "Easy", "Hot", 7),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Funny Story 1", "Easy", "Funny", 2),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Action Story 1", "Easy", "Action", 3),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Romance Story 1", "Easy", "Romance", 1),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Horror Story 1", "Easy", "Horror", 2),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Adventure Story 1", "Easy", "Adventure", 3),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Sport Story 1", "Easy", "Sport", 1),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "History Story 1", "Easy", "History", 2),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Sci-fi Story 1", "Easy", "Sci-fi", 3),
-        ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Kids Story 1", "Easy", "Kids", 1)
+    val allItems = listOf(
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216733.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216729.png"
+            ),
+            title = "Stickman Battle",
+            level = "Easy",
+            category = "Hot",
+            frame = 2
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216732.png"
+            ),
+            title = "Stickman Fight",
+            level = "Medium",
+            category = "New",
+            frame = 1
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216731.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216728.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216730.png"
+            ),
+            title = "Stickman Adventure",
+            level = "Hard",
+            category = "Hot",
+            frame = 3
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216726.png"
+            ),
+            title = "Stickman Parkour",
+            level = "Easy",
+            category = "Fun",
+            frame = 1
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216725.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216724.png"
+            ),
+            title = "Stickman Climb",
+            level = "Medium",
+            category = "Challenging",
+            frame = 2
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216723.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216722.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216721.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216720.png"
+            ),
+            title = "Stickman Swing",
+            level = "Hard",
+            category = "Popular",
+            frame = 4
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216719.png"
+            ),
+            title = "Stickman Puzzle",
+            level = "Easy",
+            category = "Logic",
+            frame = 1
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216718.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216717.png"
+            ),
+            title = "Stickman Ninja",
+            level = "Medium",
+            category = "Stealth",
+            frame = 2
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216716.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216715.png",
+                "https://cdn-icons-png.flaticon.com/512/1216/1216714.png"
+            ),
+            title = "Stickman Quest",
+            level = "Hard",
+            category = "Adventure",
+            frame = 3
+        ),
+        ItemModel(
+            imageUrl = listOf(
+                "https://cdn-icons-png.flaticon.com/512/1216/1216713.png"
+            ),
+            title = "Stickman Escape",
+            level = "Easy",
+            category = "Fun",
+            frame = 1
+        )
     )
+
     private val _items = MutableLiveData<List<ItemModel>>()
     val items: LiveData<List<ItemModel>> get() = _items
 

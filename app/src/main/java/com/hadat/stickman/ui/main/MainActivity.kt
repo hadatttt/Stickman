@@ -1,6 +1,7 @@
 package com.hadat.stickman.ui.main
 
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import com.hadat.stickman.R
@@ -9,20 +10,32 @@ import com.hadat.stickman.databinding.ActivityMainBinding
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private val TAG = "MainActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        try {
+            Log.d(TAG, "Inflating layout...")
+            binding = ActivityMainBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            Log.d(TAG, "Layout inflated successfully")
 
-        // No toolbar setup needed
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        // No AppBarConfiguration setup since there's no toolbar
+            val navController = findNavController(R.id.nav_host_fragment_content_main)
+            Log.d(TAG, "NavController found: ${navController.currentDestination?.label}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onCreate: ${e.message}", e)
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        return navController.navigateUp() || super.onSupportNavigateUp()
+        return try {
+            val navController = findNavController(R.id.nav_host_fragment_content_main)
+            Log.d(TAG, "Navigate up from ${navController.currentDestination?.label}")
+            navController.navigateUp() || super.onSupportNavigateUp()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onSupportNavigateUp: ${e.message}", e)
+            super.onSupportNavigateUp()
+        }
     }
 }

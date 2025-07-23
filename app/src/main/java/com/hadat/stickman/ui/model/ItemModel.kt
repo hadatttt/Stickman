@@ -5,7 +5,7 @@ import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class ItemModel(
-    val imageUrl: String,
+    val imageUrl: List<String>,
     val title: String,
     val level: String,
     val category: String,

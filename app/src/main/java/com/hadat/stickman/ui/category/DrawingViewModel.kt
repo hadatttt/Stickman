@@ -99,7 +99,7 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun saveCurrentDrawingState(drawingId: Int) {
+    fun saveCurrentDrawingState(drawingId: Int) {
         drawingView?.let { view ->
             val existingIndex = drawings.indexOfFirst { it.id == drawingId }
             val newState = DrawingState(
