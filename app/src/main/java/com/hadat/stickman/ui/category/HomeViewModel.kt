@@ -24,7 +24,6 @@ class HomeViewModel : ViewModel() {
         ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Sci-fi Story 1", "Easy", "Sci-fi", 3),
         ItemModel("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQV94bbI8Jq9fkf7Vp74LnCvkFVKeoW7ODHKmDX0idkNRD7Vs-X9ovMVcug02A1kOMCCpw&usqp=CAU", "Kids Story 1", "Easy", "Kids", 1)
     )
-
     private val _items = MutableLiveData<List<ItemModel>>()
     val items: LiveData<List<ItemModel>> get() = _items
 

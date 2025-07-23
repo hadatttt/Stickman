@@ -14,9 +14,9 @@
         android:layout_height="56dp"
         android:background="#F0F0F0"
         android:elevation="4dp"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
             android:id="@+id/btnBack"
@@ -25,21 +25,21 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Quay lại"
             android:src="@android:drawable/ic_menu_revert"
-            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="#000000" />
 
         <LinearLayout
             android:id="@+id/toolIcons"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:gravity="center"
-            app:layout_constraintTop_toTopOf="parent"
+            android:orientation="horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnUndo"
             app:layout_constraintStart_toEndOf="@id/btnBack"
-            app:layout_constraintEnd_toStartOf="@id/btnUndo">
+            app:layout_constraintTop_toTopOf="parent">
 
             <!-- Các nút công cụ -->
             <ImageButton
@@ -116,9 +116,9 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Hoàn tác"
             android:src="@android:drawable/ic_menu_revert"
-            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btnRedo"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="#000000" />
 
         <ImageButton
@@ -128,32 +128,34 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Làm lại"
             android:src="@android:drawable/ic_menu_rotate"
-            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="#000000" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Thanh chọn màu và stroke -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/colorSizeToolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_width="411dp"
+        android:layout_height="74dp"
         android:background="#E0E0E0"
         android:elevation="2dp"
-        app:layout_constraintTop_toBottomOf="@id/topToolbar"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/topToolbar">
 
 
         <View
             android:id="@+id/colorPreview"
-            android:layout_width="34dp"
-            android:layout_height="29dp"
-            android:layout_marginStart="16dp"
+            android:layout_width="23dp"
+            android:layout_height="21dp"
+            android:layout_marginStart="36dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="48dp"
             android:background="#000000"
             android:clickable="true"
-            app:layout_constraintBottom_toTopOf="@+id/textOpacity"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -166,9 +168,9 @@
             android:max="50"
             android:min="1"
             android:progress="10"
-            app:layout_constraintTop_toTopOf="@id/colorPreview"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/colorPreview"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintTop_toTopOf="@id/colorPreview" />
 
 
         <TextView
@@ -176,11 +178,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:text="Độ trong suốt:"
+            android:layout_marginTop="39dp"
+            android:layout_marginEnd="344dp"
+            android:text="Opacity:"
             android:textColor="#000000"
-            app:layout_constraintTop_toBottomOf="@id/colorPreview"
-            app:layout_constraintStart_toStartOf="parent" />
-
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <SeekBar
             android:id="@+id/seekBarOpacity"
@@ -190,10 +194,10 @@
             android:layout_marginEnd="8dp"
             android:max="100"
             android:progress="100"
-            app:layout_constraintTop_toTopOf="@id/textOpacity"
-            app:layout_constraintStart_toEndOf="@id/textOpacity"
+            app:layout_constraintBottom_toBottomOf="@id/textOpacity"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toBottomOf="@id/textOpacity" />
+            app:layout_constraintStart_toEndOf="@id/textOpacity"
+            app:layout_constraintTop_toTopOf="@id/textOpacity" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
@@ -201,12 +205,12 @@
         android:id="@+id/background_image"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:scaleType="fitXY"
         android:background="@android:color/white"
-        app:layout_constraintTop_toBottomOf="@id/colorSizeToolbar"
+        android:scaleType="fitXY"
         app:layout_constraintBottom_toTopOf="@id/recyclerView"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/colorSizeToolbar" />
 
 
     <com.hadat.stickman.ui.home.DrawingView
@@ -221,6 +225,42 @@
         app:layout_constraintTop_toTopOf="@id/background_image"
         app:layout_constraintVertical_bias="0.0" />
 
+    <ImageButton
+        android:id="@+id/btnFinish"
+        android:layout_width="76dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="319dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="100dp"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Finish"
+        android:scaleType="centerInside"
+        android:src="@android:drawable/ic_menu_edit"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:tint="#000000" />
+
+    <ImageButton
+        android:id="@+id/btnPreview"
+        android:layout_width="76dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="158dp"
+        android:layout_marginEnd="177dp"
+        android:layout_marginBottom="100dp"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Preview"
+        android:scaleType="centerInside"
+        android:src="@android:drawable/ic_menu_send"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:tint="#000000" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
@@ -228,8 +268,8 @@
         android:clipToPadding="false"
         android:padding="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         tools:listitem="@layout/item_frame" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

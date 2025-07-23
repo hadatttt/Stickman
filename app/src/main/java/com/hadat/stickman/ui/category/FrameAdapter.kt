@@ -14,19 +14,36 @@ class FrameAdapter(
     private val onItemClick: (Int) -> Unit
 ) : RecyclerView.Adapter<FrameAdapter.FrameViewHolder>() {
 
+    private var selectedPosition: Int = 0
+
     inner class FrameViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val previewImage: ImageView = itemView.findViewById(R.id.imgFrame)
-        val txtFrameId: TextView = itemView.findViewById(R.id.txtFrameID) // thêm dòng này
+        val txtFrameId: TextView = itemView.findViewById(R.id.txtFrameID)
+
+        fun bind(frame: FrameModel, isSelected: Boolean) {
+            txtFrameId.text = "${frame.id}"
+            frame.previewBitmap?.let {
+                if (!it.isRecycled) {
+                    previewImage.setImageBitmap(it)
+                } else {
+                    previewImage.setImageDrawable(null)
+                }
+            } ?: run {
+                previewImage.setImageDrawable(null)
+            }
+            itemView.isSelected = isSelected
+            itemView.alpha = if (isSelected) 1f else 0.5f
+        }
 
         init {
             itemView.setOnClickListener {
-                onItemClick(adapterPosition)
+                val frame = frameList[adapterPosition]
+                val previousPosition = selectedPosition
+                selectedPosition = adapterPosition
+                notifyItemChanged(previousPosition)
+                notifyItemChanged(selectedPosition)
+                onItemClick(frame.id)
             }
-        }
-
-        fun bind(frame: FrameModel) {
-            txtFrameId.text = "${frame.id}" // hiển thị id
-            frame.previewBitmap?.let { previewImage.setImageBitmap(it) }
         }
     }
 
@@ -37,9 +54,17 @@ class FrameAdapter(
     }
 
     override fun onBindViewHolder(holder: FrameViewHolder, position: Int) {
-        holder.bind(frameList[position])
+        holder.bind(frameList[position], position == selectedPosition)
     }
 
     override fun getItemCount(): Int = frameList.size
-}
 
+    fun updateSelectedPosition(drawingId: Int) {
+        val previousPosition = selectedPosition
+        selectedPosition = frameList.indexOfFirst { it.id == drawingId }
+        if (selectedPosition != -1) {
+            notifyItemChanged(previousPosition)
+            notifyItemChanged(selectedPosition)
+        }
+    }
+}

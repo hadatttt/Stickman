@@ -23,20 +23,20 @@ class DrawingView @JvmOverloads constructor(
         DRAW, ERASE, FILL, RECTANGLE, CIRCLE
     }
 
-    private var mode: Mode = Mode.DRAW
-    private var currentPath = Path()
-    private var currentPaint = createPaint(DEFAULT_STROKE_COLOR, DEFAULT_STROKE_WIDTH)
-
-    private val commandHistory = CommandHistory()
-    private val fillShapes = mutableListOf<Pair<Path, Paint>>()
     private var bitmap: Bitmap? = null
     private var bitmapCanvas: Canvas? = null
+    private var currentPaint = createPaint(DEFAULT_STROKE_COLOR, DEFAULT_STROKE_WIDTH)
+    private var currentPath = Path()
+    private val commandHistory = CommandHistory()
+    private val undoneCommands = mutableListOf<Command>()
+    private val fillShapes = mutableListOf<Pair<Path, Paint>>()
 
     // Thuộc tính vẽ
     private var strokeColor = DEFAULT_STROKE_COLOR
     private var strokeWidth = DEFAULT_STROKE_WIDTH
     private var eraserSize = DEFAULT_ERASER_SIZE
     private var brushAlpha = DEFAULT_BRUSH_ALPHA
+    private var mode: Mode = Mode.DRAW
 
     // Hỗ trợ đa chạm
     private var scaleFactor = 1f
@@ -63,146 +63,246 @@ class DrawingView @JvmOverloads constructor(
         setLayerType(LAYER_TYPE_HARDWARE, null)
         isFocusable = true
         isFocusableInTouchMode = true
-        // Đảm bảo view trong suốt
         setBackgroundColor(Color.TRANSPARENT)
+        initializeBitmap()
     }
 
-    /**
-     * Thiết lập chế độ vẽ (DRAW, ERASE, FILL, RECTANGLE, CIRCLE).
-     */
-    fun setMode(newMode: Mode) {
-        mode = newMode
-        if (mode == Mode.DRAW || mode == Mode.RECTANGLE || mode == Mode.CIRCLE) {
-            currentPaint = createPaint(strokeColor, strokeWidth, brushAlpha)
-        } else if (mode == Mode.ERASE) {
-            currentPaint = createPaint(Color.TRANSPARENT, eraserSize, 255, isErase = true)
+    private fun initializeBitmap() {
+        val targetWidth = if (width > 0) width else 300
+        val targetHeight = if (height > 0) height else 300
+        bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+        bitmapCanvas = Canvas(bitmap!!)
+        bitmapCanvas?.drawColor(Color.TRANSPARENT)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w > 0 && h > 0) {
+            bitmap?.recycle()
+            bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            bitmapCanvas = Canvas(bitmap!!)
+            bitmapCanvas?.drawColor(Color.TRANSPARENT)
+            redrawCanvas()
         }
     }
 
-    /**
-     * Thiết lập màu nét vẽ.
-     */
+    fun setMode(newMode: Mode) {
+        mode = newMode
+        currentPaint = createPaint(
+            color = strokeColor,
+            strokeWidth = if (newMode == Mode.ERASE) eraserSize else strokeWidth,
+            alpha = if (newMode == Mode.ERASE) 255 else brushAlpha,
+            isErase = newMode == Mode.ERASE
+        )
+        invalidate()
+    }
+
     fun setColor(color: Int) {
         strokeColor = color
-        if (mode == Mode.DRAW || mode == Mode.RECTANGLE || mode == Mode.CIRCLE) {
+        if (mode != Mode.ERASE) {
             currentPaint = createPaint(color, strokeWidth, brushAlpha)
         }
         invalidate()
     }
 
-    /**
-     * Thiết lập độ dày nét vẽ.
-     */
     fun setStrokeWidth(width: Float) {
         strokeWidth = width
-        if (mode == Mode.DRAW || mode == Mode.RECTANGLE || mode == Mode.CIRCLE) {
+        if (mode != Mode.ERASE) {
             currentPaint = createPaint(strokeColor, width, brushAlpha)
         }
         invalidate()
     }
 
-    /**
-     * Thiết lập kích thước tẩy.
-     */
     fun setEraserSize(size: Float) {
         eraserSize = size
         if (mode == Mode.ERASE) {
             currentPaint = createPaint(Color.TRANSPARENT, size, 255, isErase = true)
         }
+        invalidate()
     }
 
-    /**
-     * Thiết lập độ trong suốt của bút (0-255).
-     */
     fun setBrushAlpha(alpha: Int) {
         brushAlpha = alpha.coerceIn(0, 255)
-        if (mode == Mode.DRAW || mode == Mode.RECTANGLE || mode == Mode.CIRCLE) {
+        if (mode != Mode.ERASE) {
             currentPaint = createPaint(strokeColor, strokeWidth, brushAlpha)
         }
         invalidate()
     }
 
-    /**
-     * Xóa toàn bộ canvas.
-     */
+    fun setBitmap(newBitmap: Bitmap?) {
+        if (newBitmap != null && !newBitmap.isRecycled && newBitmap.width > 0 && newBitmap.height > 0) {
+            bitmap?.recycle()
+            bitmap = newBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            bitmapCanvas = Canvas(bitmap!!)
+        } else {
+            initializeBitmap()
+        }
+        redrawCanvas()
+        invalidate()
+    }
+
+    fun setDrawingState(state: com.hadat.stickman.ui.category.DrawingViewModel.DrawingState) {
+        commandHistory.clear()
+        state.commands.forEach { command ->
+            when (command) {
+                is DrawPathCommand -> commandHistory.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
+                is ErasePathCommand -> commandHistory.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
+                is FillPathCommand -> commandHistory.add(FillPathCommand(Path(command.path), Paint(command.paint)))
+            }
+        }
+        fillShapes.clear()
+        fillShapes.addAll(state.fillShapes.map { Pair(Path(it.first), Paint(it.second)) })
+        scaleFactor = state.scaleFactor
+        translateX = state.translateX
+        translateY = state.translateY
+        setBitmap(state.bitmap)
+        redrawCanvas()
+        invalidate()
+    }
+
+    fun getBitmap(): Bitmap? = bitmap?.copy(Bitmap.Config.ARGB_8888, true)
+
+    fun getCommandHistory(): List<Command> = commandHistory.getCommands()
+
+    fun getFillShapes(): List<Pair<Path, Paint>> = fillShapes.map { Pair(Path(it.first), Paint(it.second)) }
+
+    fun getScaleFactor(): Float = scaleFactor
+
+    fun getTranslateX(): Float = translateX
+
+    fun getTranslateY(): Float = translateY
+
     fun clearDrawing() {
         commandHistory.clear()
+        undoneCommands.clear()
         fillShapes.clear()
         bitmap?.eraseColor(Color.TRANSPARENT)
+        bitmapCanvas = bitmap?.let { Canvas(it) }
         invalidate()
     }
 
-    /**
-     * Hoàn tác hành động trước đó.
-     */
     fun undo() {
-        commandHistory.undo()
-        invalidate()
+        val command = commandHistory.undo()
+        if (command != null) {
+            if (command is FillPathCommand) {
+                // Remove the corresponding fill shape
+                fillShapes.removeAll { it.first == command.path }
+            }
+            undoneCommands.add(command)
+            redrawCanvas()
+        }
     }
 
-    /**
-     * Làm lại hành động đã hoàn tác.
-     */
     fun redo() {
-        commandHistory.redo()
+        if (undoneCommands.isNotEmpty()) {
+            val command = undoneCommands.removeAt(undoneCommands.lastIndex)
+            commandHistory.add(command)
+            if (command is FillPathCommand) {
+                fillShapes.add(command.path to command.paint)
+            }
+            redrawCanvas()
+        }
+    }
+
+    fun copyFrom(other: DrawingView) {
+        // Sao chép bitmap
+        val otherBitmap = other.getBitmap()
+        val targetWidth = if (width > 0) width else 300
+        val targetHeight = if (height > 0) height else 300
+        if (otherBitmap != null && !otherBitmap.isRecycled && otherBitmap.width > 0 && otherBitmap.height > 0) {
+            bitmap?.recycle()
+            bitmap = otherBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            bitmapCanvas = Canvas(bitmap!!)
+        } else {
+            bitmap?.recycle()
+            bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+            bitmapCanvas = Canvas(bitmap!!)
+            bitmapCanvas?.drawColor(Color.TRANSPARENT)
+        }
+
+        // Sao chép các thuộc tính vẽ
+        strokeColor = other.strokeColor
+        strokeWidth = other.strokeWidth
+        eraserSize = other.eraserSize
+        brushAlpha = other.brushAlpha
+        mode = other.mode
+        currentPaint = createPaint(
+            strokeColor,
+            if (mode == Mode.ERASE) eraserSize else strokeWidth,
+            if (mode == Mode.ERASE) 255 else brushAlpha,
+            mode == Mode.ERASE
+        )
+
+        // Sao chép lịch sử lệnh
+        commandHistory.clear()
+        val otherCommands = other.commandHistory.getCommands()
+        otherCommands.forEach { command ->
+            when (command) {
+                is DrawPathCommand -> commandHistory.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
+                is ErasePathCommand -> commandHistory.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
+                is FillPathCommand -> commandHistory.add(FillPathCommand(Path(command.path), Paint(command.paint)))
+            }
+        }
+
+        // Sao chép undoneCommands
+        undoneCommands.clear()
+        other.undoneCommands.forEach { command ->
+            when (command) {
+                is DrawPathCommand -> undoneCommands.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
+                is ErasePathCommand -> undoneCommands.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
+                is FillPathCommand -> undoneCommands.add(FillPathCommand(Path(command.path), Paint(command.paint)))
+            }
+        }
+
+        // Sao chép danh sách fillShapes
+        fillShapes.clear()
+        other.fillShapes.forEach { (path, paint) ->
+            fillShapes.add(Pair(Path(path), Paint(paint)))
+        }
+
+        // Sao chép các thuộc tính biến đổi
+        scaleFactor = other.scaleFactor
+        translateX = other.translateX
+        translateY = other.translateY
+
+        // Vẽ lại canvas
+        redrawCanvas()
         invalidate()
     }
 
-    /**
-     * Lấy bản vẽ dưới dạng bitmap, chỉ chứa các nét vẽ (không bao gồm nền).
-     */
-    fun getBitmap(): Bitmap {
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        bitmap?.let { canvas.drawBitmap(it, 0f, 0f, null) }
-        return bitmap
-    }
-
-    /**
-     * Lấy chế độ hiện tại.
-     */
-    fun getMode(): Mode = mode
-
-    /**
-     * Lấy độ dày nét vẽ hiện tại.
-     */
-    fun getStrokeWidth(): Float = strokeWidth
-
-    /**
-     * Lấy kích thước tẩy hiện tại.
-     */
-    fun getEraserSize(): Float = eraserSize
-
-
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        bitmap?.recycle()
-        bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        bitmapCanvas = Canvas(bitmap!!)
-        bitmapCanvas?.drawColor(Color.TRANSPARENT)
+    private fun redrawCanvas() {
+        bitmap?.eraseColor(Color.TRANSPARENT)
+        bitmapCanvas = bitmap?.let { Canvas(it) }
+        bitmapCanvas?.save()
+        bitmapCanvas?.scale(scaleFactor, scaleFactor)
+        bitmapCanvas?.translate(translateX / scaleFactor, translateY / scaleFactor)
+        // Draw fill shapes
+        for (shape in fillShapes) {
+            bitmapCanvas?.drawPath(shape.first, shape.second)
+        }
+        // Draw only commands up to currentIndex
+        for (i in 0..commandHistory.currentIndex) {
+            val command = commandHistory.getCommands()[i]
+            when (command) {
+                is DrawPathCommand -> bitmapCanvas?.drawPath(command.path, command.paint)
+                is ErasePathCommand -> bitmapCanvas?.drawPath(command.path, command.paint)
+                is FillPathCommand -> bitmapCanvas?.drawPath(command.path, command.paint)
+            }
+        }
+        bitmapCanvas?.restore()
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-
-        // Áp dụng các biến đổi để phóng to/thu nhỏ và di chuyển
         canvas.save()
-//<<<<<<< HEAD
-//        canvas.scale(scaleFactor, scaleFactor)
-//=======
-//      canvas.scale(scaleFactor, scaleFactor)
-//>>>>>>> 6d571fd (feat : add ui)
+        canvas.scale(scaleFactor, scaleFactor)
         canvas.translate(translateX / scaleFactor, translateY / scaleFactor)
-
-        // Vẽ bitmap chứa các nét vẽ (trong suốt)
         bitmap?.let { canvas.drawBitmap(it, 0f, 0f, null) }
-
-        // Chỉ vẽ currentPath hoặc currentShapePath nếu không ở chế độ ERASE
         if (mode != Mode.ERASE) {
             currentShapePath?.let { canvas.drawPath(it, currentPaint) }
             canvas.drawPath(currentPath, currentPaint)
         }
-
         canvas.restore()
     }
 
@@ -212,11 +312,7 @@ class DrawingView @JvmOverloads constructor(
 
         when (event.pointerCount) {
             1 -> handleSingleTouch(event, x, y)
-//<<<<<<< HEAD
 //            2 -> handleMultiTouch(event)
-//=======
-////            2 -> handleMultiTouch(event)
-//>>>>>>> 6d571fd (feat : add ui)
         }
         return true
     }
@@ -231,73 +327,37 @@ class DrawingView @JvmOverloads constructor(
         }
     }
 
-//<<<<<<< HEAD
-//    private fun handleMultiTouch(event: MotionEvent) {
-//        isMultiTouch = true
-//        when (event.actionMasked) {
-//            MotionEvent.ACTION_POINTER_DOWN -> {
-//                lastTouchX = (event.getX(0) + event.getX(1)) / 2
-//                lastTouchY = (event.getY(0) + event.getY(1)) / 2
-//            }
-//            MotionEvent.ACTION_MOVE -> {
-//                val newX = (event.getX(0) + event.getX(1)) / 2
-//                val newY = (event.getY(0) + event.getY(1)) / 2
-//                translateX += newX - lastTouchX
-//                translateY += newY - lastTouchY
-//                lastTouchX = newX
-//                lastTouchY = newY
-//
-//                // Tính toán tỷ lệ phóng to
-//                val oldDist = distance(event, 0, 1)
-//                val newDist = distance(event, 0, 1)
-//                if (oldDist > 10f) {
-//                    scaleFactor *= newDist / oldDist
-//                    scaleFactor = scaleFactor.coerceIn(0.5f, 3f)
-//                }
-//                invalidate()
-//            }
-//        }
-//    }
+    private fun handleMultiTouch(event: MotionEvent) {
+        isMultiTouch = true
+        when (event.actionMasked) {
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                lastTouchX = (event.getX(0) + event.getX(1)) / 2
+                lastTouchY = (event.getY(0) + event.getY(1)) / 2
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val newX = (event.getX(0) + event.getX(1)) / 2
+                val newY = (event.getY(0) + event.getY(1)) / 2
+                translateX += newX - lastTouchX
+                translateY += newY - lastTouchY
+                lastTouchX = newX
+                lastTouchY = newY
+
+                val oldDist = distance(event, 0, 1)
+                val newDist = distance(event, 0, 1)
+                if (oldDist > 10f) {
+                    scaleFactor *= newDist / oldDist
+                    scaleFactor = scaleFactor.coerceIn(0.5f, 3f)
+                }
+                invalidate()
+            }
+        }
+    }
 
     private fun distance(event: MotionEvent, first: Int, second: Int): Float {
         val dx = event.getX(first) - event.getX(second)
         val dy = event.getY(first) - event.getY(second)
         return kotlin.math.sqrt(dx * dx + dy * dy)
     }
-//=======
-////    private fun handleMultiTouch(event: MotionEvent) {
-////        isMultiTouch = true
-////        when (event.actionMasked) {
-////            MotionEvent.ACTION_POINTER_DOWN -> {
-////                lastTouchX = (event.getX(0) + event.getX(1)) / 2
-////                lastTouchY = (event.getY(0) + event.getY(1)) / 2
-////            }
-////            MotionEvent.ACTION_MOVE -> {
-////                val newX = (event.getX(0) + event.getX(1)) / 2
-////                val newY = (event.getY(0) + event.getY(1)) / 2
-////                translateX += newX - lastTouchX
-////                translateY += newY - lastTouchY
-////                lastTouchX = newX
-////                lastTouchY = newY
-////
-////                // Tính toán tỷ lệ phóng to
-////                val oldDist = distance(event, 0, 1)
-////                val newDist = distance(event, 0, 1)
-////                if (oldDist > 10f) {
-////                    scaleFactor *= newDist / oldDist
-////                    scaleFactor = scaleFactor.coerceIn(0.5f, 3f)
-////                }
-////                invalidate()
-////            }
-////        }
-////    }
-//
-////    private fun distance(event: MotionEvent, first: Int, second: Int): Float {
-////        val dx = event.getX(first) - event.getX(second)
-////        val dy = event.getY(first) - event.getY(second)
-////        return kotlin.math.sqrt(dx * dx + dy * dy)
-////    }
-//>>>>>>> 6d571fd (feat : add ui)
 
     private fun handleDraw(event: MotionEvent, x: Float, y: Float) {
         when (event.action) {
@@ -315,6 +375,7 @@ class DrawingView @JvmOverloads constructor(
                 currentPath.lineTo(x, y)
                 bitmapCanvas?.drawPath(currentPath, currentPaint)
                 commandHistory.add(DrawPathCommand(currentPath, currentPaint))
+                undoneCommands.clear()
                 currentPath = Path()
                 invalidate()
             }
@@ -337,6 +398,7 @@ class DrawingView @JvmOverloads constructor(
                 currentPath.lineTo(x, y)
                 bitmapCanvas?.drawPath(currentPath, currentPaint)
                 commandHistory.add(ErasePathCommand(currentPath, currentPaint))
+                undoneCommands.clear()
                 currentPath = Path()
                 invalidate()
             }
@@ -359,6 +421,7 @@ class DrawingView @JvmOverloads constructor(
                 currentShapePath?.let {
                     bitmapCanvas?.drawPath(it, currentPaint)
                     commandHistory.add(DrawPathCommand(it, currentPaint))
+                    undoneCommands.clear()
                 }
                 currentShapePath = null
                 invalidate()
@@ -378,6 +441,7 @@ class DrawingView @JvmOverloads constructor(
             fillShapes.add(targetPath.first to paintFill)
             bitmapCanvas?.drawPath(targetPath.first, paintFill)
             commandHistory.add(FillPathCommand(targetPath.first, paintFill))
+            undoneCommands.clear()
             invalidate()
         }
     }
@@ -408,7 +472,7 @@ class DrawingView @JvmOverloads constructor(
             this.color = color
             this.strokeWidth = strokeWidth
             this.alpha = alpha
-            style = Paint.Style.STROKE
+            style = if (isErase) Paint.Style.STROKE else Paint.Style.STROKE
             strokeJoin = Paint.Join.ROUND
             strokeCap = Paint.Cap.ROUND
             isAntiAlias = true
@@ -419,7 +483,7 @@ class DrawingView @JvmOverloads constructor(
         }
     }
 
-    private interface Command {
+    interface Command {
         fun execute(canvas: Canvas)
         fun undo(canvas: Canvas)
     }
@@ -428,32 +492,26 @@ class DrawingView @JvmOverloads constructor(
         override fun execute(canvas: Canvas) {
             canvas.drawPath(path, paint)
         }
-        override fun undo(canvas: Canvas) {
-            // Vẽ lại toàn bộ canvas
-        }
+        override fun undo(canvas: Canvas) {}
     }
 
-    private class ErasePathCommand(private val path: Path, private val paint: Paint) : Command {
+    private class ErasePathCommand(val path: Path, val paint: Paint) : Command {
         override fun execute(canvas: Canvas) {
             canvas.drawPath(path, paint)
         }
-        override fun undo(canvas: Canvas) {
-            // Vẽ lại toàn bộ canvas
-        }
+        override fun undo(canvas: Canvas) {}
     }
 
-    private class FillPathCommand(private val path: Path, private val paint: Paint) : Command {
+    private class FillPathCommand(val path: Path, val paint: Paint) : Command {
         override fun execute(canvas: Canvas) {
             canvas.drawPath(path, paint)
         }
-        override fun undo(canvas: Canvas) {
-            // Vẽ lại toàn bộ canvas
-        }
+        override fun undo(canvas: Canvas) {}
     }
 
     private inner class CommandHistory {
         private val commands = mutableListOf<Command>()
-        private var currentIndex = -1
+        var currentIndex = -1
 
         fun add(command: Command) {
             while (currentIndex < commands.size - 1) {
@@ -464,30 +522,25 @@ class DrawingView @JvmOverloads constructor(
             command.execute(bitmapCanvas!!)
         }
 
-        fun undo() {
+        fun undo(): Command? {
             if (currentIndex >= 0) {
-                bitmap?.eraseColor(Color.TRANSPARENT)
-                fillShapes.clear()
-                for (i in 0 until currentIndex) {
-                    commands[i].execute(bitmapCanvas!!)
-                }
+                val command = commands[currentIndex]
                 currentIndex--
-                invalidate()
+                return command
             }
+            return null
         }
 
         fun redo() {
             if (currentIndex < commands.size - 1) {
                 currentIndex++
                 commands[currentIndex].execute(bitmapCanvas!!)
-                invalidate()
             }
         }
 
         fun clear() {
             commands.clear()
             currentIndex = -1
-            bitmap?.eraseColor(Color.TRANSPARENT)
         }
 
         fun findPathAt(x: Float, y: Float): Pair<Path, Paint>? {
@@ -509,5 +562,7 @@ class DrawingView @JvmOverloads constructor(
             }
             return null
         }
+
+        fun getCommands(): List<Command> = commands.take(currentIndex + 1)
     }
 }

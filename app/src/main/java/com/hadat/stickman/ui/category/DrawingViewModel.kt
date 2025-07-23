@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
 import android.os.Environment
 import android.provider.MediaStore
 import android.widget.ImageView
@@ -36,109 +37,201 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     private val _toastMessage = MutableLiveData<String>()
     val toastMessage: LiveData<String> = _toastMessage
 
+    private val _currentDrawingId = MutableLiveData<Int>()
+    val currentDrawingId: LiveData<Int> = _currentDrawingId
+
+    private val _drawingList = MutableLiveData<List<DrawingState>>()
+    val drawingList: LiveData<List<DrawingState>> = _drawingList
+
     private var drawingView: DrawingView? = null
     private var backgroundImageView: ImageView? = null
+    private val drawings = mutableListOf<DrawingState>()
 
-    fun setDrawingView(view: DrawingView, backgroundView: ImageView) {
+    data class DrawingState(
+        val id: Int,
+        val bitmap: Bitmap?,
+        val commands: List<DrawingView.Command>,
+        val fillShapes: List<Pair<android.graphics.Path, android.graphics.Paint>>,
+        val strokeColor: Int,
+        val strokeWidth: Float,
+        val eraserSize: Float,
+        val brushAlpha: Int,
+        val mode: DrawingView.Mode,
+        val scaleFactor: Float,
+        val translateX: Float,
+        val translateY: Float
+    )
+
+    fun setDrawingView(view: DrawingView, backgroundView: ImageView, drawingId: Int = 1) {
         drawingView = view
         backgroundImageView = backgroundView
-        drawingView?.setMode(_mode.value!!)
-        drawingView?.setColor(_color.value!!)
-        drawingView?.setStrokeWidth(_strokeSize.value!!)
-        drawingView?.setEraserSize(_eraserSize.value!!)
-        drawingView?.setBrushAlpha((_opacity.value!! * 2.55).toInt())
+        _currentDrawingId.value = drawingId
+        loadDrawing(drawingId)
     }
 
-    fun setMode(newMode: DrawingView.Mode) {
-        _mode.value = newMode
-        drawingView?.setMode(newMode)
-        when (newMode) {
-            DrawingView.Mode.ERASE -> {
-                _toastMessage.value = "Chọn chế độ tẩy"
+    private fun loadDrawing(drawingId: Int) {
+        drawingView?.let { view ->
+            val existingDrawing = drawings.find { it.id == drawingId }
+            if (existingDrawing != null) {
+                view.setDrawingState(existingDrawing)
+                view.invalidate()
+            } else {
+                view.setMode(_mode.value!!)
+                view.setColor(_color.value!!)
+                view.setStrokeWidth(_strokeSize.value!!)
+                view.setEraserSize(_eraserSize.value!!)
+                view.setBrushAlpha((_opacity.value!! * 2.55).toInt())
+                view.clearDrawing()
+                saveCurrentDrawingState(drawingId)
+                view.invalidate()
             }
-            DrawingView.Mode.FILL -> {
-                _toastMessage.value = "Chạm để đổ màu đã chọn"
-            }
-            DrawingView.Mode.RECTANGLE -> {
-                _toastMessage.value = "Chọn chế độ vẽ hình chữ nhật"
-            }
-            DrawingView.Mode.CIRCLE -> {
-                _toastMessage.value = "Chọn chế độ vẽ hình tròn"
-            }
-            else -> {
-                _toastMessage.value = "Chọn chế độ vẽ"
-            }
+        } ?: run {
+            _toastMessage.value = "DrawingView chưa được khởi tạo"
         }
     }
 
-    fun setColor(newColor: Int) {
-        _color.value = newColor
-        drawingView?.setColor(newColor)
-        _toastMessage.value = "Đã chọn màu"
-    }
-
-    fun setSize(size: Int) {
-        val validSize = if (size < 1) 1 else size
-        when (_mode.value) {
-            DrawingView.Mode.ERASE -> {
-                _eraserSize.value = validSize.toFloat()
-                drawingView?.setEraserSize(validSize.toFloat())
-                _toastMessage.value = "Kích thước tẩy: $validSize"
-            }
-            else -> {
-                _strokeSize.value = validSize.toFloat()
-                drawingView?.setStrokeWidth(validSize.toFloat())
-                _toastMessage.value = "Kích thước nét vẽ: $validSize"
-            }
+    fun switchDrawing(drawingId: Int) {
+        if (_currentDrawingId.value != drawingId) {
+            saveCurrentDrawingState(_currentDrawingId.value ?: 0)
+            _currentDrawingId.value = drawingId
+            loadDrawing(drawingId)
+            _toastMessage.value = "Đã chuyển sang bản vẽ ID: $drawingId"
         }
     }
 
-    fun setOpacity(progress: Int) {
-        _opacity.value = progress
-        drawingView?.setBrushAlpha((progress * 2.55).toInt())
-        _toastMessage.value = "Độ trong suốt: $progress%"
+    private fun saveCurrentDrawingState(drawingId: Int) {
+        drawingView?.let { view ->
+            val existingIndex = drawings.indexOfFirst { it.id == drawingId }
+            val newState = DrawingState(
+                id = drawingId,
+                bitmap = view.getBitmap(),
+                commands = view.getCommandHistory(),
+                fillShapes = view.getFillShapes(),
+                strokeColor = _color.value!!,
+                strokeWidth = _strokeSize.value!!,
+                eraserSize = _eraserSize.value!!,
+                brushAlpha = (_opacity.value!! * 2.55).toInt(),
+                mode = _mode.value!!,
+                scaleFactor = view.getScaleFactor(),
+                translateX = view.getTranslateX(),
+                translateY = view.getTranslateY()
+            )
+            if (existingIndex >= 0) {
+                drawings[existingIndex] = newState
+            } else {
+                drawings.add(newState)
+            }
+            _drawingList.postValue(drawings.toList())
+        }
     }
 
-    fun undo() {
-        drawingView?.undo()
-        _toastMessage.value = "Hoàn tác"
+    fun getDrawingList(): List<DrawingState> = drawings.toList()
+
+    fun setMode(newMode: DrawingView.Mode, drawingId: Int) {
+        if (_currentDrawingId.value == drawingId) {
+            _mode.value = newMode
+            drawingView?.setMode(newMode)
+            when (newMode) {
+                DrawingView.Mode.ERASE -> _toastMessage.value = "Chọn chế độ tẩy"
+                DrawingView.Mode.FILL -> _toastMessage.value = "Chạm để đổ màu đã chọn"
+                DrawingView.Mode.RECTANGLE -> _toastMessage.value = "Chọn chế độ vẽ hình chữ nhật"
+                DrawingView.Mode.CIRCLE -> _toastMessage.value = "Chọn chế độ vẽ hình tròn"
+                else -> _toastMessage.value = "Chọn chế độ vẽ"
+            }
+            saveCurrentDrawingState(drawingId)
+            drawingView?.invalidate()
+        }
     }
 
-    fun redo() {
-        drawingView?.redo()
-        _toastMessage.value = "Làm lại"
+    fun setColor(newColor: Int, drawingId: Int) {
+        if (_currentDrawingId.value == drawingId) {
+            _color.value = newColor
+            drawingView?.setColor(newColor)
+            _toastMessage.value = "Đã chọn màu"
+            saveCurrentDrawingState(drawingId)
+            drawingView?.invalidate()
+        }
     }
 
-    fun clearDrawing() {
-        drawingView?.clearDrawing()
-        _toastMessage.value = "Xóa toàn bộ canvas"
+    fun setSize(size: Int, drawingId: Int) {
+        if (_currentDrawingId.value == drawingId) {
+            val validSize = if (size < 1) 1 else size
+            when (_mode.value) {
+                DrawingView.Mode.ERASE -> {
+                    _eraserSize.value = validSize.toFloat()
+                    drawingView?.setEraserSize(validSize.toFloat())
+                    _toastMessage.value = "Kích thước tẩy: $validSize"
+                }
+                else -> {
+                    _strokeSize.value = validSize.toFloat()
+                    drawingView?.setStrokeWidth(validSize.toFloat())
+                    _toastMessage.value = "Kích thước nét vẽ: $validSize"
+                }
+            }
+            saveCurrentDrawingState(drawingId)
+            drawingView?.invalidate()
+        }
     }
 
-    fun saveDrawing() {
+    fun setOpacity(progress: Int, drawingId: Int) {
+        if (_currentDrawingId.value == drawingId) {
+            _opacity.value = progress
+            drawingView?.setBrushAlpha((progress * 2.55).toInt())
+            _toastMessage.value = "Độ trong suốt: $progress%"
+            saveCurrentDrawingState(drawingId)
+            drawingView?.invalidate()
+        }
+    }
+
+    fun undo(drawingId: Int) {
+        if (_currentDrawingId.value == drawingId) {
+            drawingView?.undo()
+            _toastMessage.value = "Hoàn tác"
+            saveCurrentDrawingState(drawingId)
+            drawingView?.invalidate()
+        }
+    }
+
+    fun redo(drawingId: Int) {
+        if (_currentDrawingId.value == drawingId) {
+            drawingView?.redo()
+            _toastMessage.value = "Làm lại"
+            saveCurrentDrawingState(drawingId)
+            drawingView?.invalidate()
+        }
+    }
+
+    fun clearDrawing(drawingId: Int) {
+        if (_currentDrawingId.value == drawingId) {
+            drawingView?.clearDrawing()
+            _toastMessage.value = "Xóa toàn bộ canvas"
+            saveCurrentDrawingState(drawingId)
+            drawingView?.invalidate()
+        }
+    }
+
+    fun saveDrawing(drawingId: Int) {
         val drawingBitmap = drawingView?.getBitmap() ?: run {
             _toastMessage.value = "Không thể lưu bản vẽ"
             return
         }
 
-        // Lấy hình nền từ ImageView
         val backgroundDrawable = backgroundImageView?.drawable
-        val backgroundBitmap = if (backgroundDrawable is android.graphics.drawable.BitmapDrawable) {
+        val backgroundBitmap = if (backgroundDrawable is BitmapDrawable) {
             backgroundDrawable.bitmap
         } else {
-            // Tạo bitmap trắng mặc định nếu không có hình nền
             Bitmap.createBitmap(drawingBitmap.width, drawingBitmap.height, Bitmap.Config.ARGB_8888).apply {
                 eraseColor(Color.WHITE)
             }
         }
 
-        // Kết hợp hình nền và lớp vẽ
         val finalBitmap = Bitmap.createBitmap(drawingBitmap.width, drawingBitmap.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(finalBitmap)
         canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
         canvas.drawBitmap(drawingBitmap, 0f, 0f, null)
 
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "Drawing_$timeStamp.png"
+        val fileName = "Drawing_${drawingId}_$timeStamp.png"
 
         try {
             val contentValues = ContentValues().apply {
@@ -163,6 +256,7 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         } finally {
             finalBitmap.recycle()
         }
+        saveCurrentDrawingState(drawingId)
     }
 
     fun getSizeForMode(): Pair<Int, Int> {
