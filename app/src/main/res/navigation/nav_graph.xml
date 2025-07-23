@@ -55,11 +55,11 @@
         <argument
             android:name="bitmapPathList"
             app:argType="string[]"
-            app:nullable="true" /> />
+            app:nullable="true" />
         <argument
-            android:name="idBackground"
-            app:argType="integer"
-            android:defaultValue="-1" />
+            android:name="backgroundUrl"
+            app:argType="string"
+            android:defaultValue="" />
 
         <action
             android:id="@+id/action_exportFragment_to_backgroundSelectionFragment"
@@ -76,7 +76,10 @@
         android:id="@+id/backgroundSelectionFragment"
         android:name="com.hadat.stickman.ui.home.BackgroundSelectionFragment"
         android:label="Export">
-
+        <argument
+            android:name="bitmapPathList"
+            app:argType="string[]"
+            app:nullable="true" />
         <action
             android:id="@+id/action_backgroundSelectionFragment_to_exportFragment"
             app:destination="@id/exportFragment" />

@@ -2,17 +2,18 @@ package com.hadat.stickman.ui.home
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.hadat.stickman.R
 import com.hadat.stickman.databinding.FragmentExportBinding
 import com.hadat.stickman.ui.utils.ExportUtils
@@ -26,10 +27,9 @@ class ExportFragment : Fragment() {
     private val args: ExportFragmentArgs by navArgs()
 
     private var selectedFormat: String = "mp4"
-    private var idBackground: Int = R.color.white  // background mặc định trắng
+    private var backgroundUrl: String = ""
 
     private var bitmapPathList: List<String> = emptyList()
-    // Lưu bitmapList chỉ khi cần xuất, không load toàn bộ lúc onViewCreated
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -40,15 +40,19 @@ class ExportFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        // Lấy danh sách đường dẫn bitmap từ args
         bitmapPathList = args.bitmapPathList?.toList() ?: emptyList()
+        backgroundUrl = args.backgroundUrl ?: ""
 
-        // Lấy idBackground từ args, nếu bằng 0 hoặc -1 thì dùng mặc định trắng
-        idBackground = args.idBackground.takeIf { it > 0 } ?: R.color.white
-
-        // Load ảnh nền
-        val drawable: Drawable? = ContextCompat.getDrawable(requireContext(), idBackground)
-        binding.imageBackground.setImageDrawable(drawable)
+        // Load background preview bằng Glide (chỉ để preview)
+        if (backgroundUrl.isNotBlank()) {
+            Glide.with(this)
+                .load(backgroundUrl)
+                .placeholder(R.color.white)
+                .error(R.color.white)
+                .into(binding.imageBackground)
+        } else {
+            binding.imageBackground.setImageResource(R.color.white)
+        }
 
         setupSpinners()
         setupFormatSelection()
@@ -80,13 +84,12 @@ class ExportFragment : Fragment() {
                 else -> "mp4"
             }
         }
-        // Đặt mặc định là mp4
         binding.radioGroupFormat.check(R.id.radioMp4)
     }
 
     private fun setupBackgroundSelector() {
         binding.imageBackground.setOnClickListener {
-            val action = ExportFragmentDirections.actionExportFragmentToBackgroundSelectionFragment()
+            val action = ExportFragmentDirections.actionExportFragmentToBackgroundSelectionFragment(args.bitmapPathList)
             findNavController().navigate(action)
         }
     }
@@ -102,14 +105,11 @@ class ExportFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            // Khi cần xuất mới decode bitmap từ đường dẫn (giảm tải bộ nhớ)
             val bitmapList = bitmapPathList.mapNotNull { path ->
                 val file = File(path)
                 if (file.exists()) {
                     BitmapFactory.decodeFile(path)
-                } else {
-                    null
-                }
+                } else null
             }
 
             if (bitmapList.isEmpty()) {
@@ -117,12 +117,11 @@ class ExportFragment : Fragment() {
                 return@setOnClickListener
             }
 
+            // Gọi ExportUtils, truyền backgroundUrl (link ảnh) để tải ảnh nền
             when (selectedFormat) {
-                "mp4" -> ExportUtils.exportToMp4(requireContext(), bitmapList, frameRate, projectName, R.drawable.bg2)
-                "gif" -> ExportUtils.exportToGif(requireContext(), bitmapList, frameRate, projectName, R.drawable.bg1)
+                "mp4" -> ExportUtils.exportToMp4(requireContext(), bitmapList, frameRate, projectName, backgroundUrl)
+                "gif" -> ExportUtils.exportToGif(requireContext(), bitmapList, frameRate, projectName, backgroundUrl)
             }
-
-            Toast.makeText(requireContext(), "Exported as $selectedFormat", Toast.LENGTH_SHORT).show()
         }
     }
 

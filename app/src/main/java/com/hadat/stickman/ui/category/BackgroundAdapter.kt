@@ -5,11 +5,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.hadat.stickman.R
 
 class BackgroundAdapter(
-    private val items: List<Int>,
-    private val onClick: (Int) -> Unit
+    private val items: List<String>,  // đổi sang List<String> chứa URL ảnh
+    private val onClick: (String) -> Unit
 ) : RecyclerView.Adapter<BackgroundAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -25,7 +26,11 @@ class BackgroundAdapter(
     override fun getItemCount(): Int = items.size
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.imageView.setImageResource(items[position])
-        holder.itemView.setOnClickListener { onClick(items[position]) }
+        val url = items[position]
+        Glide.with(holder.imageView.context)
+            .load(url)
+            .centerCrop().into(holder.imageView)
+
+        holder.itemView.setOnClickListener { onClick(url) }
     }
 }

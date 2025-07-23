@@ -9,7 +9,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.SeekBar
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -52,8 +51,11 @@ class DrawingFragment : Fragment() {
         val args: DrawingFragmentArgs by navArgs()
         val itemModel = args.itemModel
         val frameCount = itemModel.frame
-        val imageUrl = itemModel.imageUrl
+        val imageUrls = itemModel.imageUrl // Now a list of strings
         drawingView = binding.drawingView
+
+        // Pass the list of image URLs to the ViewModel
+        viewModel.setImageUrls(imageUrls)
 
         drawingView.viewTreeObserver.addOnGlobalLayoutListener(object :
             ViewTreeObserver.OnGlobalLayoutListener {
@@ -61,36 +63,8 @@ class DrawingFragment : Fragment() {
                 drawingView.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 viewModel.setDrawingView(drawingView, binding.backgroundImage, 1)
 
-                Glide.with(this@DrawingFragment)
-                    .asBitmap()
-                    .load(imageUrl.first())
-                    .override(drawingView.width, drawingView.height)
-                    .into(object : CustomTarget<Bitmap>() {
-                        override fun onResourceReady(
-                            resource: Bitmap,
-                            transition: Transition<in Bitmap>?
-                        ) {
-                            binding.backgroundImage.setImageBitmap(resource)
-                            Toast.makeText(
-                                requireContext(),
-                                "Hình nền được thiết lập",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-
-                        override fun onLoadCleared(placeholder: Drawable?) {
-                            binding.backgroundImage.setImageDrawable(null)
-                        }
-
-                        override fun onLoadFailed(errorDrawable: Drawable?) {
-                            binding.backgroundImage.setImageDrawable(null)
-                            Toast.makeText(
-                                requireContext(),
-                                "Không thể tải hình nền",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    })
+                // Load initial background image for drawingId 1
+                loadBackgroundImage(1)
             }
         })
 
@@ -101,9 +75,36 @@ class DrawingFragment : Fragment() {
         setupBottomControls()
     }
 
+    private fun loadBackgroundImage(drawingId: Int) {
+        val imageUrl = viewModel.getImageUrlForDrawing(drawingId)
+        if (imageUrl != null) {
+            Glide.with(this@DrawingFragment)
+                .asBitmap()
+                .load(imageUrl)
+                .override(drawingView.width, drawingView.height)
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(
+                        resource: Bitmap,
+                        transition: Transition<in Bitmap>?
+                    ) {
+                        binding.backgroundImage.setImageBitmap(resource)
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        binding.backgroundImage.setImageDrawable(null)
+                    }
+
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        binding.backgroundImage.setImageDrawable(null)
+                    }
+                })
+        } else {
+            binding.backgroundImage.setImageDrawable(null)
+        }
+    }
+
     private fun setupFrameRecyclerView(frameCount: Int) {
         if (frameCount <= 0) {
-            Toast.makeText(requireContext(), "Số frame không hợp lệ", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -114,8 +115,7 @@ class DrawingFragment : Fragment() {
 
         frameAdapter = FrameAdapter(frameList) { drawingId ->
             viewModel.switchDrawing(drawingId)
-            Toast.makeText(requireContext(), "Đã chuyển sang frame $drawingId", Toast.LENGTH_SHORT)
-                .show()
+            loadBackgroundImage(drawingId) // Load background when switching frames
         }
 
         binding.recyclerView.apply {
@@ -156,12 +156,9 @@ class DrawingFragment : Fragment() {
             binding.seekBarOpacity.progress = opacity
         }
 
-        viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-        }
-
         viewModel.currentDrawingId.observe(viewLifecycleOwner) { drawingId ->
             frameAdapter.updateSelectedPosition(drawingId)
+            loadBackgroundImage(drawingId) // Update background when drawing ID changes
         }
     }
 
@@ -255,33 +252,24 @@ class DrawingFragment : Fragment() {
             val bitmapList = drawingList.mapNotNull { it.bitmap }
 
             if (bitmapList.isEmpty()) {
-                Toast.makeText(requireContext(), "Không có frame nào để gửi", Toast.LENGTH_SHORT)
-                    .show()
                 return@setOnClickListener
             }
-            // Lưu bitmap vào cache, lấy danh sách đường dẫn
             val bitmapPathList = saveBitmapsToCache(requireContext(), bitmapList)
-            // Truyền danh sách đường dẫn qua SafeArgs
             val action =
                 DrawingFragmentDirections.actionDrawingFragmentToPreviewFragment(bitmapPathList.toTypedArray())
             findNavController().navigate(action)
         }
+
         binding.btnFinish.setOnClickListener {
             viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
             val drawingList = viewModel.getDrawingList()
 
-
-            // Lấy danh sách bitmap không null
             val bitmapList = drawingList.mapNotNull { it.bitmap }
 
             if (bitmapList.isEmpty()) {
-                Toast.makeText(requireContext(), "Không có frame nào để gửi", Toast.LENGTH_SHORT)
-                    .show()
                 return@setOnClickListener
             }
-            // Lưu bitmap vào cache, lấy danh sách đường dẫn
             val bitmapPathList = saveBitmapsToCache(requireContext(), bitmapList)
-            // Truyền danh sách đường dẫn qua SafeArgs
             val action =
                 DrawingFragmentDirections.actionDrawingFragmentToExportFragment(bitmapPathList.toTypedArray())
             findNavController().navigate(action)
@@ -306,7 +294,6 @@ class DrawingFragment : Fragment() {
         _binding = null
     }
 
-    // Hàm lưu danh sách Bitmap vào bộ nhớ cache, trả về danh sách đường dẫn file
     private fun saveBitmapsToCache(
         context: android.content.Context,
         bitmaps: List<Bitmap>

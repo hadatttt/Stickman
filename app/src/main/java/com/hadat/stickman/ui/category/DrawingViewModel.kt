@@ -34,9 +34,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     private val _opacity = MutableLiveData(100)
     val opacity: LiveData<Int> = _opacity
 
-    private val _toastMessage = MutableLiveData<String>()
-    val toastMessage: LiveData<String> = _toastMessage
-
     private val _currentDrawingId = MutableLiveData<Int>()
     val currentDrawingId: LiveData<Int> = _currentDrawingId
 
@@ -46,6 +43,7 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     private var drawingView: DrawingView? = null
     private var backgroundImageView: ImageView? = null
     private val drawings = mutableListOf<DrawingState>()
+    private var imageUrls: List<String> = emptyList()
 
     data class DrawingState(
         val id: Int,
@@ -61,6 +59,15 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         val translateX: Float,
         val translateY: Float
     )
+
+    fun setImageUrls(urls: List<String>) {
+        imageUrls = urls
+    }
+
+    fun getImageUrlForDrawing(drawingId: Int): String? {
+        val index = drawingId - 1
+        return if (index in imageUrls.indices) imageUrls[index] else null
+    }
 
     fun setDrawingView(view: DrawingView, backgroundView: ImageView, drawingId: Int = 1) {
         drawingView = view
@@ -85,8 +92,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
                 saveCurrentDrawingState(drawingId)
                 view.invalidate()
             }
-        } ?: run {
-            _toastMessage.value = "DrawingView chưa được khởi tạo"
         }
     }
 
@@ -95,7 +100,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
             saveCurrentDrawingState(_currentDrawingId.value ?: 0)
             _currentDrawingId.value = drawingId
             loadDrawing(drawingId)
-            _toastMessage.value = "Đã chuyển sang bản vẽ ID: $drawingId"
         }
     }
 
@@ -131,13 +135,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         if (_currentDrawingId.value == drawingId) {
             _mode.value = newMode
             drawingView?.setMode(newMode)
-            when (newMode) {
-                DrawingView.Mode.ERASE -> _toastMessage.value = "Chọn chế độ tẩy"
-                DrawingView.Mode.FILL -> _toastMessage.value = "Chạm để đổ màu đã chọn"
-                DrawingView.Mode.RECTANGLE -> _toastMessage.value = "Chọn chế độ vẽ hình chữ nhật"
-                DrawingView.Mode.CIRCLE -> _toastMessage.value = "Chọn chế độ vẽ hình tròn"
-                else -> _toastMessage.value = "Chọn chế độ vẽ"
-            }
             saveCurrentDrawingState(drawingId)
             drawingView?.invalidate()
         }
@@ -147,7 +144,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         if (_currentDrawingId.value == drawingId) {
             _color.value = newColor
             drawingView?.setColor(newColor)
-            _toastMessage.value = "Đã chọn màu"
             saveCurrentDrawingState(drawingId)
             drawingView?.invalidate()
         }
@@ -160,12 +156,10 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
                 DrawingView.Mode.ERASE -> {
                     _eraserSize.value = validSize.toFloat()
                     drawingView?.setEraserSize(validSize.toFloat())
-                    _toastMessage.value = "Kích thước tẩy: $validSize"
                 }
                 else -> {
                     _strokeSize.value = validSize.toFloat()
                     drawingView?.setStrokeWidth(validSize.toFloat())
-                    _toastMessage.value = "Kích thước nét vẽ: $validSize"
                 }
             }
             saveCurrentDrawingState(drawingId)
@@ -177,7 +171,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         if (_currentDrawingId.value == drawingId) {
             _opacity.value = progress
             drawingView?.setBrushAlpha((progress * 2.55).toInt())
-            _toastMessage.value = "Độ trong suốt: $progress%"
             saveCurrentDrawingState(drawingId)
             drawingView?.invalidate()
         }
@@ -186,7 +179,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     fun undo(drawingId: Int) {
         if (_currentDrawingId.value == drawingId) {
             drawingView?.undo()
-            _toastMessage.value = "Hoàn tác"
             saveCurrentDrawingState(drawingId)
             drawingView?.invalidate()
         }
@@ -195,7 +187,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     fun redo(drawingId: Int) {
         if (_currentDrawingId.value == drawingId) {
             drawingView?.redo()
-            _toastMessage.value = "Làm lại"
             saveCurrentDrawingState(drawingId)
             drawingView?.invalidate()
         }
@@ -204,17 +195,13 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     fun clearDrawing(drawingId: Int) {
         if (_currentDrawingId.value == drawingId) {
             drawingView?.clearDrawing()
-            _toastMessage.value = "Xóa toàn bộ canvas"
             saveCurrentDrawingState(drawingId)
             drawingView?.invalidate()
         }
     }
 
     fun saveDrawing(drawingId: Int) {
-        val drawingBitmap = drawingView?.getBitmap() ?: run {
-            _toastMessage.value = "Không thể lưu bản vẽ"
-            return
-        }
+        val drawingBitmap = drawingView?.getBitmap() ?: return
 
         val backgroundDrawable = backgroundImageView?.drawable
         val backgroundBitmap = if (backgroundDrawable is BitmapDrawable) {
@@ -246,13 +233,9 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
             uri?.let {
                 resolver.openOutputStream(it)?.use { outputStream ->
                     finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-                    _toastMessage.value = "Bản vẽ đã được lưu vào thư viện"
                 }
-            } ?: run {
-                _toastMessage.value = "Không thể lưu bản vẽ"
             }
         } catch (e: Exception) {
-            _toastMessage.value = "Lỗi khi lưu bản vẽ: ${e.message}"
         } finally {
             finalBitmap.recycle()
         }
