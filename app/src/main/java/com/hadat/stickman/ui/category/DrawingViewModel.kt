@@ -200,47 +200,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun saveDrawing(drawingId: Int) {
-        val drawingBitmap = drawingView?.getBitmap() ?: return
-
-        val backgroundDrawable = backgroundImageView?.drawable
-        val backgroundBitmap = if (backgroundDrawable is BitmapDrawable) {
-            backgroundDrawable.bitmap
-        } else {
-            Bitmap.createBitmap(drawingBitmap.width, drawingBitmap.height, Bitmap.Config.ARGB_8888).apply {
-                eraseColor(Color.WHITE)
-            }
-        }
-
-        val finalBitmap = Bitmap.createBitmap(drawingBitmap.width, drawingBitmap.height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(finalBitmap)
-        canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
-        canvas.drawBitmap(drawingBitmap, 0f, 0f, null)
-
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "Drawing_${drawingId}_$timeStamp.png"
-
-        try {
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/StickmanDrawings")
-            }
-
-            val resolver = getApplication<Application>().contentResolver
-            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-            uri?.let {
-                resolver.openOutputStream(it)?.use { outputStream ->
-                    finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-                }
-            }
-        } catch (e: Exception) {
-        } finally {
-            finalBitmap.recycle()
-        }
-        saveCurrentDrawingState(drawingId)
-    }
 
     fun getSizeForMode(): Pair<Int, Int> {
         return when (_mode.value) {
