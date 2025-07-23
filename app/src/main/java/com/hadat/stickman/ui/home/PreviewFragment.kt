@@ -34,7 +34,7 @@ class PreviewFragment : Fragment() {
                     imageView.setImageBitmap(it)
                 }
                 currentImageIndex = (currentImageIndex + 1) % pathList!!.size
-                handler.postDelayed(this, 50)
+                handler.postDelayed(this, 100)
             }
         }
     }
@@ -59,7 +59,7 @@ class PreviewFragment : Fragment() {
             isSlideshowRunning = true
             currentImageIndex = 0
             // Không hiển thị ảnh đầu tiên ngay lập tức, mà bắt đầu sau 50ms cho đồng bộ
-            handler.postDelayed(slideshowRunnable, 50)
+            handler.postDelayed(slideshowRunnable, 100)
         }
 
         buttonBack.setOnClickListener {

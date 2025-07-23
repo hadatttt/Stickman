@@ -1,3 +1,4 @@
+
 package com.hadat.stickman.ui.category
 
 import android.app.Application
@@ -129,6 +130,29 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun addNewDrawing(frameId: Int) {
+        // Check if the drawing already exists to avoid duplicates
+        if (drawings.any { it.id == frameId }) return
+
+        // Create a new DrawingState with default values
+        val newState = DrawingState(
+            id = frameId,
+            bitmap = null, // New frame starts with no bitmap
+            commands = emptyList(),
+            fillShapes = emptyList(),
+            strokeColor = _color.value ?: Color.BLACK,
+            strokeWidth = _strokeSize.value ?: 10f,
+            eraserSize = _eraserSize.value ?: 50f,
+            brushAlpha = (_opacity.value!! * 2.55).toInt(),
+            mode = _mode.value ?: DrawingView.Mode.DRAW,
+            scaleFactor = 1f,
+            translateX = 0f,
+            translateY = 0f
+        )
+        drawings.add(newState)
+        _drawingList.postValue(drawings.toList())
+    }
+
     fun getDrawingList(): List<DrawingState> = drawings.toList()
 
     fun setMode(newMode: DrawingView.Mode, drawingId: Int) {
@@ -199,7 +223,6 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
             drawingView?.invalidate()
         }
     }
-
 
     fun getSizeForMode(): Pair<Int, Int> {
         return when (_mode.value) {

@@ -1,14 +1,19 @@
 package com.hadat.stickman.ui.home
 
+import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.SeekBar
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -35,7 +40,7 @@ class DrawingFragment : Fragment() {
     private val viewModel: DrawingViewModel by viewModels()
     private lateinit var drawingView: DrawingView
     private lateinit var frameAdapter: FrameAdapter
-    private lateinit var frameList: List<FrameModel>
+    private lateinit var frameList: MutableList<FrameModel>
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -51,19 +56,31 @@ class DrawingFragment : Fragment() {
         val args: DrawingFragmentArgs by navArgs()
         val itemModel = args.itemModel
         val frameCount = itemModel.frame
-        val imageUrls = itemModel.imageUrl // Now a list of strings
+        val imageUrls = itemModel.imageUrl
         drawingView = binding.drawingView
 
         // Pass the list of image URLs to the ViewModel
         viewModel.setImageUrls(imageUrls)
 
-        drawingView.viewTreeObserver.addOnGlobalLayoutListener(object :
-            ViewTreeObserver.OnGlobalLayoutListener {
+        // Load initial sticker for DrawingView
+        val stickerUrl = "https://img.lovepik.com/free-png/20211119/lovepik-qingming-handwritten-style-png-image_401042234_wh1200.png"
+        Glide.with(this@DrawingFragment)
+            .asBitmap()
+            .load(stickerUrl)
+            .into(object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                    drawingView.setStickerBitmap(resource)
+                }
+                override fun onLoadCleared(placeholder: Drawable?) {}
+                override fun onLoadFailed(errorDrawable: Drawable?) {
+                    Log.e("DrawingFragment", "Failed to load sticker from URL")
+                }
+            })
+
+        drawingView.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 drawingView.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 viewModel.setDrawingView(drawingView, binding.backgroundImage, 1)
-
-                // Load initial background image for drawingId 1
                 loadBackgroundImage(1)
             }
         })
@@ -89,13 +106,12 @@ class DrawingFragment : Fragment() {
                     ) {
                         binding.backgroundImage.setImageBitmap(resource)
                     }
-
                     override fun onLoadCleared(placeholder: Drawable?) {
                         binding.backgroundImage.setImageDrawable(null)
                     }
-
                     override fun onLoadFailed(errorDrawable: Drawable?) {
                         binding.backgroundImage.setImageDrawable(null)
+                        Log.e("DrawingFragment", "Failed to load background image for drawingId: $drawingId")
                     }
                 })
         } else {
@@ -104,18 +120,30 @@ class DrawingFragment : Fragment() {
     }
 
     private fun setupFrameRecyclerView(frameCount: Int) {
-        if (frameCount <= 0) {
-            return
-        }
+        // Initialize frameList from ViewModel to restore all frames
+        frameList = viewModel.getDrawingList().map { drawingState ->
+            FrameModel(id = drawingState.id, previewBitmap = drawingState.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
+        }.toMutableList()
 
-        frameList = (1..frameCount).map { id ->
-            val drawingState = viewModel.getDrawingList().find { it.id == id }
-            FrameModel(id = id, previewBitmap = drawingState?.bitmap)
+        // If frameList is empty and frameCount > 0, initialize with frameCount
+        if (frameList.isEmpty() && frameCount > 0) {
+            frameList = (1..frameCount).map { id ->
+                val drawingState = viewModel.getDrawingList().find { it.id == id }
+                FrameModel(id = id, previewBitmap = drawingState?.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
+            }.toMutableList()
+            // Ensure initial frames are added to ViewModel
+            frameList.forEach { frame ->
+                if (!viewModel.getDrawingList().any { it.id == frame.id }) {
+                    viewModel.addNewDrawing(frame.id)
+                }
+            }
         }
 
         frameAdapter = FrameAdapter(frameList) { drawingId ->
+            viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
             viewModel.switchDrawing(drawingId)
-            loadBackgroundImage(drawingId) // Load background when switching frames
+            loadBackgroundImage(drawingId)
+            Log.d("DrawingFragment", "Switched to frame: $drawingId")
         }
 
         binding.recyclerView.apply {
@@ -124,11 +152,13 @@ class DrawingFragment : Fragment() {
         }
 
         viewModel.drawingList.observe(viewLifecycleOwner) { drawingList ->
-            frameList.forEachIndexed { index, frame ->
-                val drawingState = drawingList.find { it.id == frame.id }
-                frame.previewBitmap = drawingState?.bitmap?.copy(Bitmap.Config.ARGB_8888, true)
-            }
+            // Rebuild frameList to include all frames
+            frameList.clear()
+            frameList.addAll(drawingList.map { drawingState ->
+                FrameModel(id = drawingState.id, previewBitmap = drawingState.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
+            })
             frameAdapter.notifyDataSetChanged()
+            Log.d("DrawingFragment", "Drawing list updated, size: ${drawingList.size}")
         }
     }
 
@@ -141,6 +171,8 @@ class DrawingFragment : Fragment() {
                     DrawingView.Mode.FILL -> binding.btnFill
                     DrawingView.Mode.RECTANGLE -> binding.btnRectangle
                     DrawingView.Mode.CIRCLE -> binding.btnCircle
+                    DrawingView.Mode.LINE -> binding.btnLine
+                    DrawingView.Mode.STICKER -> binding.btnSticker
                 }
             )
             val (size, max) = viewModel.getSizeForMode()
@@ -158,7 +190,8 @@ class DrawingFragment : Fragment() {
 
         viewModel.currentDrawingId.observe(viewLifecycleOwner) { drawingId ->
             frameAdapter.updateSelectedPosition(drawingId)
-            loadBackgroundImage(drawingId) // Update background when drawing ID changes
+            loadBackgroundImage(drawingId)
+            Log.d("DrawingFragment", "Current drawing ID changed to: $drawingId")
         }
     }
 
@@ -186,6 +219,16 @@ class DrawingFragment : Fragment() {
         binding.btnCircle.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.setMode(DrawingView.Mode.CIRCLE, viewModel.currentDrawingId.value ?: 1)
+        }
+
+        binding.btnLine.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            viewModel.setMode(DrawingView.Mode.LINE, viewModel.currentDrawingId.value ?: 1)
+        }
+
+        binding.btnSticker.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            viewModel.setMode(DrawingView.Mode.STICKER, viewModel.currentDrawingId.value ?: 1)
         }
 
         binding.btnUndo.setOnClickListener {
@@ -219,12 +262,10 @@ class DrawingFragment : Fragment() {
                 .show()
         }
 
-        binding.seekBarStrokeSize.setOnSeekBarChangeListener(object :
-            SeekBar.OnSeekBarChangeListener {
+        binding.seekBarStrokeSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) viewModel.setSize(progress, viewModel.currentDrawingId.value ?: 1)
             }
-
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
@@ -233,7 +274,6 @@ class DrawingFragment : Fragment() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) viewModel.setOpacity(progress, viewModel.currentDrawingId.value ?: 1)
             }
-
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
@@ -241,39 +281,56 @@ class DrawingFragment : Fragment() {
 
     private fun setupBottomControls() {
         binding.btnBack.setOnClickListener {
-            val action = DrawingFragmentDirections.actionDrawingFragmentToHomeFragment()
-            findNavController().navigate(action)
+            // Save current drawing state before navigating back
+            viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
+            Log.d("DrawingFragment", "Saved current drawing state before popBackStack")
+            findNavController().popBackStack()
         }
 
         binding.btnPreview.setOnClickListener {
             viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
             val drawingList = viewModel.getDrawingList()
-
             val bitmapList = drawingList.mapNotNull { it.bitmap }
-
             if (bitmapList.isEmpty()) {
+                Toast.makeText(requireContext(), "Không có bản vẽ để xem trước!", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val bitmapPathList = saveBitmapsToCache(requireContext(), bitmapList)
-            val action =
-                DrawingFragmentDirections.actionDrawingFragmentToPreviewFragment(bitmapPathList.toTypedArray())
+            val action = DrawingFragmentDirections.actionDrawingFragmentToPreviewFragment(bitmapPathList.toTypedArray())
             findNavController().navigate(action)
         }
 
         binding.btnFinish.setOnClickListener {
             viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
             val drawingList = viewModel.getDrawingList()
-
             val bitmapList = drawingList.mapNotNull { it.bitmap }
-
             if (bitmapList.isEmpty()) {
+                Toast.makeText(requireContext(), "Không có bản vẽ để xuất!", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val bitmapPathList = saveBitmapsToCache(requireContext(), bitmapList)
-            val action =
-                DrawingFragmentDirections.actionDrawingFragmentToExportFragment(bitmapPathList.toTypedArray())
+            val action = DrawingFragmentDirections.actionDrawingFragmentToExportFragment(bitmapPathList.toTypedArray())
             findNavController().navigate(action)
         }
+
+        binding.imgAddFrame.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            addNewFrame()
+        }
+    }
+
+    private fun addNewFrame() {
+        // Save current drawing state before adding new frame
+        viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
+        val newFrameId = (frameList.maxByOrNull { it.id }?.id ?: 0) + 1
+        val newFrame = FrameModel(id = newFrameId, previewBitmap = null)
+        frameList.add(newFrame)
+        viewModel.addNewDrawing(newFrameId)
+        frameAdapter.notifyItemInserted(frameList.size - 1)
+        binding.recyclerView.scrollToPosition(frameList.size - 1)
+        viewModel.switchDrawing(newFrameId)
+        loadBackgroundImage(newFrameId)
+        Log.d("DrawingFragment", "Added new frame with ID: $newFrameId, frameList size: ${frameList.size}")
     }
 
     private fun updateButtonStates(selectedButton: View) {
@@ -282,35 +339,55 @@ class DrawingFragment : Fragment() {
             binding.btnEraser,
             binding.btnFill,
             binding.btnRectangle,
-            binding.btnCircle
+            binding.btnCircle,
+            binding.btnLine,
+            binding.btnSticker
         ).forEach {
             it.isSelected = it == selectedButton
             it.alpha = if (it.isSelected) 1f else 0.5f
         }
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
-
-    private fun saveBitmapsToCache(
-        context: android.content.Context,
-        bitmaps: List<Bitmap>
-    ): List<String> {
+    private fun saveBitmapsToCache(context: Context, bitmaps: List<Bitmap>): List<String> {
         val paths = mutableListOf<String>()
         bitmaps.forEachIndexed { index, bitmap ->
             try {
-                val file = File(context.cacheDir, "drawing_frame_$index.png")
-                FileOutputStream(file).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                    out.flush()
+                if (bitmap == null) {
+                    // Create a default white bitmap if null
+                    val defaultBitmap = Bitmap.createBitmap(
+                        drawingView.width, drawingView.height, Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = Canvas(defaultBitmap)
+                    canvas.drawColor(Color.WHITE)
+                    val file = File(context.cacheDir, "drawing_frame_$index.png")
+                    FileOutputStream(file).use { out ->
+                        defaultBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        out.flush()
+                    }
+                    paths.add(file.absolutePath)
+                    Log.d("DrawingFragment", "Saved default bitmap for frame $index")
+                } else {
+                    val file = File(context.cacheDir, "drawing_frame_$index.png")
+                    FileOutputStream(file).use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        out.flush()
+                    }
+                    paths.add(file.absolutePath)
+                    Log.d("DrawingFragment", "Saved bitmap for frame $index")
                 }
-                paths.add(file.absolutePath)
             } catch (e: IOException) {
+                Log.e("DrawingFragment", "Error saving bitmap for frame $index: ${e.message}")
                 e.printStackTrace()
             }
         }
         return paths
+    }
+
+    override fun onDestroyView() {
+        // Save current drawing state before destroying view
+        viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
+        Log.d("DrawingFragment", "Saved current drawing state in onDestroyView")
+        super.onDestroyView()
+        _binding = null
     }
 }

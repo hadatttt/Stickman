@@ -14,6 +14,7 @@ import com.hadat.stickman.databinding.FragmentHomeBinding
 import com.hadat.stickman.ui.category.CategoryAdapter
 import com.hadat.stickman.ui.category.ItemAdapter
 import com.hadat.stickman.ui.category.HomeViewModel
+import com.hadat.stickman.ui.model.ItemModel
 
 class HomeFragment : Fragment() {
 
@@ -46,6 +47,17 @@ class HomeFragment : Fragment() {
         // Setup Item RecyclerView
         itemAdapter = ItemAdapter(mutableListOf()) { item ->
             val action = HomeFragmentDirections.actionHomeFragmentToDrawingFragment(item)
+            findNavController().navigate(action)
+        }
+        binding.navAdd.setOnClickListener {
+            val itemNew = ItemModel(
+                imageUrl = listOf(""),
+                title = "NewProject",
+                level = "none",
+                category = "none",
+                frame = 1
+            )
+            val action = HomeFragmentDirections.actionHomeFragmentToDrawingFragment(itemNew)
             findNavController().navigate(action)
         }
         binding.recyclerViewTemplates.layoutManager = GridLayoutManager(requireContext(), 2)

@@ -5,9 +5,7 @@ import android.graphics.*
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.*
 
 /**
  * View tùy chỉnh để vẽ với hỗ trợ nhiều chế độ, hình dạng, undo/redo và cử chỉ đa chạm.
@@ -20,7 +18,7 @@ class DrawingView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     enum class Mode {
-        DRAW, ERASE, FILL, RECTANGLE, CIRCLE
+        DRAW, ERASE, FILL, RECTANGLE, CIRCLE, LINE, STICKER
     }
 
     private var bitmap: Bitmap? = null
@@ -30,6 +28,7 @@ class DrawingView @JvmOverloads constructor(
     private val commandHistory = CommandHistory()
     private val undoneCommands = mutableListOf<Command>()
     private val fillShapes = mutableListOf<Pair<Path, Paint>>()
+    private val stickers = mutableListOf<Sticker>()
 
     // Thuộc tính vẽ
     private var strokeColor = DEFAULT_STROKE_COLOR
@@ -46,10 +45,19 @@ class DrawingView @JvmOverloads constructor(
     private var lastTouchY = 0f
     private var isMultiTouch = false
 
-    // Vẽ hình dạng
+    // Vẽ hình dạng và sticker
     private var startX = 0f
     private var startY = 0f
     private var currentShapePath: Path? = null
+    private var tempSticker: Sticker? = null
+    private var isDraggingSticker = false
+    private var isScalingSticker = false
+    private var isRotatingSticker = false
+    private var lastDistance = 0f
+    private var lastAngle = 0f
+
+    // Sticker Bitmap
+    private var stickerBitmap: Bitmap? = null
 
     companion object {
         private const val DEFAULT_STROKE_COLOR = Color.BLACK
@@ -57,6 +65,8 @@ class DrawingView @JvmOverloads constructor(
         private const val DEFAULT_ERASER_SIZE = 50f
         private const val DEFAULT_BRUSH_ALPHA = 255
         private const val TOUCH_TOLERANCE = 4f
+        private const val STICKER_SIZE = 100f // Kích thước mặc định của sticker
+        private const val MIN_STICKER_SIZE = 20f // Kích thước tối thiểu của sticker
     }
 
     init {
@@ -75,6 +85,15 @@ class DrawingView @JvmOverloads constructor(
         bitmapCanvas?.drawColor(Color.TRANSPARENT)
     }
 
+    fun setStickerBitmap(bitmap: Bitmap?) {
+        stickerBitmap = bitmap?.copy(Bitmap.Config.ARGB_8888, true)
+        if (mode == Mode.STICKER && stickerBitmap != null) {
+            stickers.clear()
+            tempSticker = null
+        }
+        invalidate()
+    }
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w > 0 && h > 0) {
@@ -82,11 +101,27 @@ class DrawingView @JvmOverloads constructor(
             bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             bitmapCanvas = Canvas(bitmap!!)
             bitmapCanvas?.drawColor(Color.TRANSPARENT)
+            if (mode == Mode.STICKER) {
+                stickers.clear()
+                tempSticker = null
+            }
             redrawCanvas()
         }
     }
 
     fun setMode(newMode: Mode) {
+        if (mode == Mode.STICKER && newMode != Mode.STICKER && tempSticker != null && stickerBitmap != null) {
+            commandHistory.add(StickerCommand(
+                stickerBitmap!!,
+                tempSticker!!.centerX,
+                tempSticker!!.centerY,
+                tempSticker!!.width,
+                tempSticker!!.height,
+                tempSticker!!.rotation
+            ))
+            stickers.add(tempSticker!!)
+            undoneCommands.clear()
+        }
         mode = newMode
         currentPaint = createPaint(
             color = strokeColor,
@@ -94,6 +129,16 @@ class DrawingView @JvmOverloads constructor(
             alpha = if (newMode == Mode.ERASE) 255 else brushAlpha,
             isErase = newMode == Mode.ERASE
         )
+        isDraggingSticker = false
+        isScalingSticker = false
+        isRotatingSticker = false
+        currentShapePath = null
+        if (newMode == Mode.STICKER) {
+            stickers.clear()
+            tempSticker = null
+        } else {
+            tempSticker = null
+        }
         invalidate()
     }
 
@@ -148,14 +193,20 @@ class DrawingView @JvmOverloads constructor(
                 is DrawPathCommand -> commandHistory.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
                 is ErasePathCommand -> commandHistory.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
                 is FillPathCommand -> commandHistory.add(FillPathCommand(Path(command.path), Paint(command.paint)))
+                is StickerCommand -> commandHistory.add(StickerCommand(command.bitmap, command.centerX, command.centerY, command.width, command.height, command.rotation))
             }
         }
         fillShapes.clear()
         fillShapes.addAll(state.fillShapes.map { Pair(Path(it.first), Paint(it.second)) })
+        stickers.clear()
         scaleFactor = state.scaleFactor
         translateX = state.translateX
         translateY = state.translateY
         setBitmap(state.bitmap)
+        if (mode == Mode.STICKER) {
+            stickers.clear()
+            tempSticker = null
+        }
         redrawCanvas()
         invalidate()
     }
@@ -176,6 +227,8 @@ class DrawingView @JvmOverloads constructor(
         commandHistory.clear()
         undoneCommands.clear()
         fillShapes.clear()
+        stickers.clear()
+        tempSticker = null
         bitmap?.eraseColor(Color.TRANSPARENT)
         bitmapCanvas = bitmap?.let { Canvas(it) }
         invalidate()
@@ -185,8 +238,9 @@ class DrawingView @JvmOverloads constructor(
         val command = commandHistory.undo()
         if (command != null) {
             if (command is FillPathCommand) {
-                // Remove the corresponding fill shape
                 fillShapes.removeAll { it.first == command.path }
+            } else if (command is StickerCommand) {
+                stickers.removeAll { it.centerX == command.centerX && it.centerY == command.centerY }
             }
             undoneCommands.add(command)
             redrawCanvas()
@@ -199,13 +253,14 @@ class DrawingView @JvmOverloads constructor(
             commandHistory.add(command)
             if (command is FillPathCommand) {
                 fillShapes.add(command.path to command.paint)
+            } else if (command is StickerCommand) {
+                stickers.add(Sticker(command.bitmap, command.centerX, command.centerY, command.width, command.height, command.rotation))
             }
             redrawCanvas()
         }
     }
 
     fun copyFrom(other: DrawingView) {
-        // Sao chép bitmap
         val otherBitmap = other.getBitmap()
         val targetWidth = if (width > 0) width else 300
         val targetHeight = if (height > 0) height else 300
@@ -220,7 +275,6 @@ class DrawingView @JvmOverloads constructor(
             bitmapCanvas?.drawColor(Color.TRANSPARENT)
         }
 
-        // Sao chép các thuộc tính vẽ
         strokeColor = other.strokeColor
         strokeWidth = other.strokeWidth
         eraserSize = other.eraserSize
@@ -233,7 +287,6 @@ class DrawingView @JvmOverloads constructor(
             mode == Mode.ERASE
         )
 
-        // Sao chép lịch sử lệnh
         commandHistory.clear()
         val otherCommands = other.commandHistory.getCommands()
         otherCommands.forEach { command ->
@@ -241,31 +294,35 @@ class DrawingView @JvmOverloads constructor(
                 is DrawPathCommand -> commandHistory.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
                 is ErasePathCommand -> commandHistory.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
                 is FillPathCommand -> commandHistory.add(FillPathCommand(Path(command.path), Paint(command.paint)))
+                is StickerCommand -> commandHistory.add(StickerCommand(command.bitmap, command.centerX, command.centerY, command.width, command.height, command.rotation))
             }
         }
 
-        // Sao chép undoneCommands
         undoneCommands.clear()
         other.undoneCommands.forEach { command ->
             when (command) {
                 is DrawPathCommand -> undoneCommands.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
                 is ErasePathCommand -> undoneCommands.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
                 is FillPathCommand -> undoneCommands.add(FillPathCommand(Path(command.path), Paint(command.paint)))
+                is StickerCommand -> undoneCommands.add(StickerCommand(command.bitmap, command.centerX, command.centerY, command.width, command.height, command.rotation))
             }
         }
 
-        // Sao chép danh sách fillShapes
         fillShapes.clear()
         other.fillShapes.forEach { (path, paint) ->
             fillShapes.add(Pair(Path(path), Paint(paint)))
         }
 
-        // Sao chép các thuộc tính biến đổi
+        stickers.clear()
+        other.stickers.forEach { sticker ->
+            stickers.add(Sticker(sticker.bitmap, sticker.centerX, sticker.centerY, sticker.width, sticker.height, sticker.rotation))
+        }
+
         scaleFactor = other.scaleFactor
         translateX = other.translateX
         translateY = other.translateY
 
-        // Vẽ lại canvas
+        tempSticker = null
         redrawCanvas()
         invalidate()
     }
@@ -276,17 +333,31 @@ class DrawingView @JvmOverloads constructor(
         bitmapCanvas?.save()
         bitmapCanvas?.scale(scaleFactor, scaleFactor)
         bitmapCanvas?.translate(translateX / scaleFactor, translateY / scaleFactor)
-        // Draw fill shapes
         for (shape in fillShapes) {
             bitmapCanvas?.drawPath(shape.first, shape.second)
         }
-        // Draw only commands up to currentIndex
+        for (sticker in stickers) {
+            val matrix = Matrix()
+            matrix.postScale(sticker.width / sticker.bitmap.width.toFloat(), sticker.height / sticker.bitmap.height.toFloat())
+            matrix.postTranslate(-sticker.bitmap.width / 2f, -sticker.bitmap.height / 2f)
+            matrix.postRotate(sticker.rotation)
+            matrix.postTranslate(sticker.centerX, sticker.centerY)
+            bitmapCanvas?.drawBitmap(sticker.bitmap, matrix, null)
+        }
         for (i in 0..commandHistory.currentIndex) {
             val command = commandHistory.getCommands()[i]
             when (command) {
                 is DrawPathCommand -> bitmapCanvas?.drawPath(command.path, command.paint)
                 is ErasePathCommand -> bitmapCanvas?.drawPath(command.path, command.paint)
                 is FillPathCommand -> bitmapCanvas?.drawPath(command.path, command.paint)
+                is StickerCommand -> {
+                    val matrix = Matrix()
+                    matrix.postScale(command.width / command.bitmap.width.toFloat(), command.height / command.bitmap.height.toFloat())
+                    matrix.postTranslate(-command.bitmap.width / 2f, -command.bitmap.height / 2f)
+                    matrix.postRotate(command.rotation)
+                    matrix.postTranslate(command.centerX, command.centerY)
+                    bitmapCanvas?.drawBitmap(command.bitmap, matrix, null)
+                }
             }
         }
         bitmapCanvas?.restore()
@@ -299,20 +370,37 @@ class DrawingView @JvmOverloads constructor(
         canvas.scale(scaleFactor, scaleFactor)
         canvas.translate(translateX / scaleFactor, translateY / scaleFactor)
         bitmap?.let { canvas.drawBitmap(it, 0f, 0f, null) }
-        if (mode != Mode.ERASE) {
+        if (mode != Mode.ERASE && mode != Mode.STICKER) {
             currentShapePath?.let { canvas.drawPath(it, currentPaint) }
             canvas.drawPath(currentPath, currentPaint)
+        } else if (mode == Mode.STICKER && tempSticker != null && stickerBitmap != null) {
+            val matrix = Matrix()
+            // Scale sticker dựa trên width/height so với bitmap gốc
+            val scale = tempSticker!!.width / stickerBitmap!!.width.toFloat()
+            matrix.postScale(scale, scale) // Hình vuông nên scaleX = scaleY
+            // Dịch về tâm gốc để xoay quanh trung tâm
+            matrix.postTranslate(-stickerBitmap!!.width / 2f, -stickerBitmap!!.height / 2f)
+            // Xoay quanh tâm
+            matrix.postRotate(tempSticker!!.rotation)
+            // Dịch đến vị trí tâm
+            matrix.postTranslate(tempSticker!!.centerX, tempSticker!!.centerY)
+            canvas.drawBitmap(stickerBitmap!!, matrix, null)
+            // Vẽ điểm tâm để gỡ lỗi
+            val debugPaint = Paint().apply {
+                color = Color.RED
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(tempSticker!!.centerX, tempSticker!!.centerY, 5f, debugPaint)
         }
         canvas.restore()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val x = event.x / scaleFactor - translateX / scaleFactor
-        val y = event.y / scaleFactor - translateY / scaleFactor
-
+        val x = (event.x - translateX) / scaleFactor
+        val y = (event.y - translateY) / scaleFactor
         when (event.pointerCount) {
             1 -> handleSingleTouch(event, x, y)
-//            2 -> handleMultiTouch(event)
+            2 -> if (mode == Mode.STICKER && tempSticker != null) handleMultiTouch(event)
         }
         return true
     }
@@ -323,40 +411,135 @@ class DrawingView @JvmOverloads constructor(
             Mode.DRAW -> handleDraw(event, x, y)
             Mode.ERASE -> handleErase(event, x, y)
             Mode.FILL -> if (event.action == MotionEvent.ACTION_DOWN) handleFill(x, y)
-            Mode.RECTANGLE, Mode.CIRCLE -> handleShapeDrawing(event, x, y)
+            Mode.RECTANGLE, Mode.CIRCLE, Mode.LINE -> handleShapeDrawing(event, x, y)
+            Mode.STICKER -> handleSticker(event, x, y)
         }
     }
 
     private fun handleMultiTouch(event: MotionEvent) {
         isMultiTouch = true
+        val x0 = (event.getX(0) - translateX) / scaleFactor
+        val y0 = (event.getY(0) - translateY) / scaleFactor
+        val x1 = (event.getX(1) - translateX) / scaleFactor
+        val y1 = (event.getY(1) - translateY) / scaleFactor
+
         when (event.actionMasked) {
             MotionEvent.ACTION_POINTER_DOWN -> {
-                lastTouchX = (event.getX(0) + event.getX(1)) / 2
-                lastTouchY = (event.getY(0) + event.getY(1)) / 2
+                if (tempSticker != null) {
+                    isScalingSticker = true
+                    isRotatingSticker = true
+                    lastDistance = calculateDistance(x0, y0, x1, y1)
+                    lastAngle = calculateAngle(x0, y0, x1, y1)
+                }
             }
             MotionEvent.ACTION_MOVE -> {
-                val newX = (event.getX(0) + event.getX(1)) / 2
-                val newY = (event.getY(0) + event.getY(1)) / 2
-                translateX += newX - lastTouchX
-                translateY += newY - lastTouchY
-                lastTouchX = newX
-                lastTouchY = newY
-
-                val oldDist = distance(event, 0, 1)
-                val newDist = distance(event, 0, 1)
-                if (oldDist > 10f) {
-                    scaleFactor *= newDist / oldDist
-                    scaleFactor = scaleFactor.coerceIn(0.5f, 3f)
+                if (isScalingSticker && isRotatingSticker && tempSticker != null) {
+                    // Scale
+                    val newDistance = calculateDistance(x0, y0, x1, y1)
+                    if (lastDistance != 0f) {
+                        val scale = newDistance / lastDistance
+                        tempSticker?.width = (tempSticker?.width ?: STICKER_SIZE) * scale
+                        tempSticker?.height = tempSticker?.width!! // Giữ hình vuông
+                        tempSticker?.width = maxOf(tempSticker!!.width, MIN_STICKER_SIZE)
+                        tempSticker?.height = tempSticker?.width!!
+                        lastDistance = newDistance
+                    }
+                    // Rotate
+                    val newAngle = calculateAngle(x0, y0, x1, y1)
+                    val deltaAngle = newAngle - lastAngle
+                    tempSticker?.rotation = (tempSticker?.rotation ?: 0f) + deltaAngle
+                    lastAngle = newAngle
+                    // Di chuyển tâm đến trung điểm hai ngón tay
+                    tempSticker?.centerX = (x0 + x1) / 2
+                    tempSticker?.centerY = (y0 + y1) / 2
+                    invalidate()
                 }
-                invalidate()
+            }
+            MotionEvent.ACTION_POINTER_UP -> {
+                isScalingSticker = false
+                isRotatingSticker = false
+                lastDistance = 0f
+                lastAngle = 0f
+                if (tempSticker != null && stickerBitmap != null) {
+                    commandHistory.add(StickerCommand(
+                        stickerBitmap!!,
+                        tempSticker!!.centerX,
+                        tempSticker!!.centerY,
+                        tempSticker!!.width,
+                        tempSticker!!.height,
+                        tempSticker!!.rotation
+                    ))
+                    stickers.add(tempSticker!!)
+                    undoneCommands.clear()
+                    tempSticker = null
+                    isDraggingSticker = false
+                    redrawCanvas()
+                }
             }
         }
     }
 
-    private fun distance(event: MotionEvent, first: Int, second: Int): Float {
-        val dx = event.getX(first) - event.getX(second)
-        val dy = event.getY(first) - event.getY(second)
-        return kotlin.math.sqrt(dx * dx + dy * dy)
+    private fun calculateDistance(x0: Float, y0: Float, x1: Float, y1: Float): Float {
+        val dx = x1 - x0
+        val dy = y1 - y0
+        return sqrt(dx * dx + dy * dy)
+    }
+
+    private fun calculateAngle(x0: Float, y0: Float, x1: Float, y1: Float): Float {
+        val dx = x1 - x0
+        val dy = y1 - y0
+        return (atan2(dy, dx) * 180 / PI).toFloat()
+    }
+
+    private fun handleSticker(event: MotionEvent, x: Float, y: Float) {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                if (stickerBitmap != null && tempSticker == null) {
+                    startX = x
+                    startY = y
+                    tempSticker = Sticker(
+                        bitmap = stickerBitmap!!,
+                        centerX = x,
+                        centerY = y,
+                        width = STICKER_SIZE,
+                        height = STICKER_SIZE,
+                        rotation = 0f
+                    )
+                    isDraggingSticker = true
+                    invalidate()
+                }
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (isDraggingSticker && tempSticker != null) {
+                    tempSticker?.centerX = x
+                    tempSticker?.centerY = y
+                    // Kéo dãn tương tự hình vuông/hình tròn
+                    val dx = abs(x - startX)
+                    val dy = abs(y - startY)
+                    val size = maxOf(dx, dy) * 2 // Kích thước từ tâm ra hai phía
+                    tempSticker?.width = maxOf(size, MIN_STICKER_SIZE)
+                    tempSticker?.height = tempSticker?.width!! // Giữ hình vuông
+                    invalidate()
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (isDraggingSticker && tempSticker != null && stickerBitmap != null) {
+                    commandHistory.add(StickerCommand(
+                        stickerBitmap!!,
+                        tempSticker!!.centerX,
+                        tempSticker!!.centerY,
+                        tempSticker!!.width,
+                        tempSticker!!.height,
+                        tempSticker!!.rotation
+                    ))
+                    stickers.add(tempSticker!!)
+                    undoneCommands.clear()
+                    tempSticker = null
+                    isDraggingSticker = false
+                    redrawCanvas()
+                }
+            }
+        }
     }
 
     private fun handleDraw(event: MotionEvent, x: Float, y: Float) {
@@ -410,7 +593,7 @@ class DrawingView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> {
                 startX = x
                 startY = y
-                currentShapePath = Path()
+                currentShapePath = createShapePath(x, y, x, y, mode)
                 currentPaint = createPaint(strokeColor, strokeWidth, brushAlpha)
             }
             MotionEvent.ACTION_MOVE -> {
@@ -462,6 +645,10 @@ class DrawingView @JvmOverloads constructor(
                 val centerY = (startY + endY) / 2
                 path.addCircle(centerX, centerY, radius, Path.Direction.CW)
             }
+            Mode.LINE -> {
+                path.moveTo(startX, startY)
+                path.lineTo(endX, endY)
+            }
             else -> {}
         }
         return path
@@ -508,6 +695,20 @@ class DrawingView @JvmOverloads constructor(
         }
         override fun undo(canvas: Canvas) {}
     }
+
+    private class StickerCommand(val bitmap: Bitmap, val centerX: Float, val centerY: Float, val width: Float, val height: Float, val rotation: Float) : Command {
+        override fun execute(canvas: Canvas) {
+            val matrix = Matrix()
+            matrix.postScale(width / bitmap.width.toFloat(), height / bitmap.height.toFloat())
+            matrix.postTranslate(-bitmap.width / 2f, -bitmap.height / 2f)
+            matrix.postRotate(rotation)
+            matrix.postTranslate(centerX, centerY)
+            canvas.drawBitmap(bitmap, matrix, null)
+        }
+        override fun undo(canvas: Canvas) {}
+    }
+
+    private data class Sticker(val bitmap: Bitmap, var centerX: Float, var centerY: Float, var width: Float, var height: Float, var rotation: Float)
 
     private inner class CommandHistory {
         private val commands = mutableListOf<Command>()

@@ -62,7 +62,7 @@ class ExportFragment : Fragment() {
 
     private fun setupSpinners() {
         val aspectRatios = listOf("1:1", "16:9", "4:3", "3:4")
-        val frameRates = listOf("12 fps", "24 fps", "30 fps", "60 fps")
+        val frameRates = listOf("1 fps", "2 fps", "3 fps", "6 fps")
 
         binding.spinnerAspectRatio.adapter = ArrayAdapter(
             requireContext(),
@@ -98,7 +98,7 @@ class ExportFragment : Fragment() {
         binding.buttonCreate.setOnClickListener {
             val projectName = binding.editTextProjectName.text.toString().ifBlank { "MyProject" }
             val frameRate = binding.spinnerFrameRate.selectedItem.toString()
-                .replace(" fps", "").toIntOrNull() ?: 24
+                .replace(" fps", "").toIntOrNull() ?: 1
 
             if (bitmapPathList.isEmpty()) {
                 Toast.makeText(requireContext(), "No frames to export", Toast.LENGTH_SHORT).show()
