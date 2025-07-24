@@ -9,91 +9,30 @@ import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.os.Environment
 import android.provider.MediaStore
-import android.view.Surface
 import android.widget.Toast
-import com.hadat.stickman.utils.ImprovedAnimatedGifEncoder
+import com.hadat.stickman.ui.database.AppDatabase
+import com.hadat.stickman.ui.database.ProjectEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URL
 
 object ExportUtils {
 
-    /**
-     * Exports a list of Bitmaps to a GIF file using ImprovedAnimatedGifEncoder.
-     */
-    fun exportToGif(
-        context: Context,
-        frames: List<Bitmap>,
-        frameRate: Int,
-        projectName: String,
-        backgroundUrl: String? = null
-    ) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                validateInput(frames, frameRate)
+    private var projectDao: com.hadat.stickman.ui.database.ProjectDao? = null
 
-                val (width, height) = frames[0].let { it.width to it.height }
-                val backgroundBitmap = loadBackgroundBitmap(context, backgroundUrl, width, height)
-                val scaledBackground = Bitmap.createScaledBitmap(backgroundBitmap, width, height, true)
-
-                val fileName = "${projectName}-${System.currentTimeMillis()}.gif"
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "image/gif")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/StickmanExports")
-                }
-
-                val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-                    ?: throw Exception("Failed to create MediaStore record")
-
-                resolver.openOutputStream(uri)?.use { outputStream ->
-                    val encoder = ImprovedAnimatedGifEncoder().apply {
-                        setQuality(10)
-                        setSize(width, height)
-                        setFrameRate(frameRate.toFloat())
-                        setRepeat(0)
-                        start(outputStream)
-                    }
-
-                    frames.forEachIndexed { index, frame ->
-                        val combined = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                        Canvas(combined).apply {
-                            drawBitmap(scaledBackground, 0f, 0f, null)
-                            val scaledFrame = if (frame.width != width || frame.height != height) {
-                                Bitmap.createScaledBitmap(frame, width, height, true)
-                            } else frame
-                            drawBitmap(scaledFrame, 0f, 0f, null)
-                            if (scaledFrame != frame) scaledFrame.recycle()
-                        }
-                        encoder.addFrame(combined)
-                        combined.recycle()
-                        android.util.Log.d("ExportUtils", "Processed GIF frame $index")
-                    }
-
-                    encoder.finish()
-                } ?: throw Exception("Failed to open output stream")
-
-                backgroundBitmap.safeRecycle()
-                scaledBackground.safeRecycle()
-
-                launch(Dispatchers.Main) {
-                    Toast.makeText(context, "GIF exported successfully to $fileName", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                launch(Dispatchers.Main) {
-                    Toast.makeText(context, "GIF export failed: ${e.message}", Toast.LENGTH_LONG).show()
-                    android.util.Log.e("ExportUtils", "GIF export error", e)
-                }
-            }
-        }
+    // Gọi hàm này 1 lần trước khi sử dụng export
+    fun initialize(context: Context) {
+        val db = androidx.room.Room.databaseBuilder(
+            context.applicationContext,
+            AppDatabase::class.java,
+            "stickman_database"
+        ).build()
+        projectDao = db.projectDao()
     }
 
-    /**
-     * Exports a list of Bitmaps to an MP4 video using MediaCodec.
-     */
     fun exportToMp4(
         context: Context,
         frames: List<Bitmap>,
@@ -152,7 +91,6 @@ object ExportUtils {
                         if (scaledFrame != frame) scaledFrame.recycle()
 
                         drainEncoder(codec, bufferInfo, muxer, videoTrackIndex, index, frameIntervalNanos)
-                        android.util.Log.d("ExportUtils", "Processed MP4 frame $index")
                     }
 
                     drainEncoder(codec, bufferInfo, muxer, videoTrackIndex, frames.size, frameIntervalNanos)
@@ -171,16 +109,32 @@ object ExportUtils {
                 scaledBackground.safeRecycle()
                 inputSurface.release()
 
-                launch(Dispatchers.Main) {
+                // Lưu vào DB
+                val project = ProjectEntity(
+                    id = generateProjectId(),
+                    name = projectName,
+                    videoUrl = uri.toString()
+                )
+                // Gọi hàm suspend insert đúng cách:
+                projectDao?.let { dao ->
+                    withContext(Dispatchers.IO) {
+                        dao.insert(project)
+                    }
+                } ?: throw Exception("ProjectDao not initialized")
+
+                withContext(Dispatchers.Main) {
                     Toast.makeText(context, "MP4 exported successfully to $fileName", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                launch(Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(context, "MP4 export failed: ${e.message}", Toast.LENGTH_LONG).show()
-                    android.util.Log.e("ExportUtils", "MP4 export error", e)
                 }
             }
         }
+    }
+
+    private suspend fun generateProjectId(): Int {
+        return projectDao?.getMaxId()?.let { (it ?: 0) + 1 } ?: 1
     }
 
     private fun validateInput(frames: List<Bitmap>, frameRate: Int) {
@@ -193,11 +147,9 @@ object ExportUtils {
         return if (!backgroundUrl.isNullOrEmpty()) {
             try {
                 URL(backgroundUrl).openStream().use { inputStream ->
-                    BitmapFactory.decodeStream(inputStream)
-                        ?: createDefaultBackground(width, height)
+                    BitmapFactory.decodeStream(inputStream) ?: createDefaultBackground(width, height)
                 }
             } catch (e: Exception) {
-                android.util.Log.w("ExportUtils", "Failed to load background from URL", e)
                 createDefaultBackground(width, height)
             }
         } else {

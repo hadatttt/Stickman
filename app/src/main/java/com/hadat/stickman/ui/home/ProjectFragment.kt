@@ -1,60 +1,126 @@
 package com.hadat.stickman.ui.home
 
+import android.app.AlertDialog
 import android.os.Bundle
-import androidx.fragment.app.Fragment
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.hadat.stickman.R
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.room.Room
+import com.hadat.stickman.databinding.FragmentProjectBinding
+import com.hadat.stickman.ui.database.AppDatabase
+import com.hadat.stickman.ui.model.ProjectModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [ProjectFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class ProjectFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
+
+    private var _binding: FragmentProjectBinding? = null
+    private val binding get() = _binding!!
+
+    private lateinit var projectDao: com.hadat.stickman.ui.database.ProjectDao
+    private lateinit var projectAdapter: ProjectAdapter
+    private var projectList: List<ProjectModel> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
+
+        val db = Room.databaseBuilder(
+            requireContext().applicationContext,
+            AppDatabase::class.java,
+            "stickman_database"
+        ).build()
+        projectDao = db.projectDao()
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_project, container, false)
+    ): View {
+        _binding = FragmentProjectBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment ProjectFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            ProjectFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.recycleViewProject.layoutManager = LinearLayoutManager(requireContext())
+
+        fetchAllProjects()
+    }
+
+    private fun fetchAllProjects() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val projectEntities = projectDao.getAllProjects()
+
+                projectList = projectEntities.map { entity ->
+                    ProjectModel(
+                        id = entity.id,
+                        name = entity.name,
+                        videoUrl = entity.videoUrl
+                    )
+                }
+
+                withContext(Dispatchers.Main) {
+                    projectAdapter = ProjectAdapter(
+                        requireContext(),
+                        projectList,
+                        onItemClick = { name, videoUrl ->
+                            val action = ProjectFragmentDirections.actionProjectFragmentToPreviewVideoFragment(name, videoUrl)
+                            findNavController().navigate(action)
+                        },
+                        onItemLongClick = { project ->
+                            showDeleteConfirmationDialog(project)
+                        }
+                    )
+                    binding.recycleViewProject.adapter = projectAdapter
+
+                    Log.d("ProjectFragment", "Danh sách dự án: $projectList")
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Log.e("ProjectFragment", "Lỗi khi lấy danh sách dự án", e)
                 }
             }
+        }
+    }
+
+    private fun showDeleteConfirmationDialog(project: ProjectModel) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Xóa dự án")
+            .setMessage("Bạn có chắc muốn xóa dự án \"${project.name}\" không?")
+            .setPositiveButton("Xóa") { dialog, _ ->
+                dialog.dismiss()
+                deleteProject(project)
+            }
+            .setNegativeButton("Hủy") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .create()
+            .show()
+    }
+
+    private fun deleteProject(project: ProjectModel) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                projectDao.deleteProjectById(project.id) // cần viết hàm deleteProjectById trong DAO
+                fetchAllProjects() // tải lại danh sách sau khi xóa
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Log.e("ProjectFragment", "Lỗi khi xóa dự án", e)
+                }
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

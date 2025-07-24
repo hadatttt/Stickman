@@ -60,6 +60,10 @@ class HomeFragment : Fragment() {
             val action = HomeFragmentDirections.actionHomeFragmentToDrawingFragment(itemNew)
             findNavController().navigate(action)
         }
+        binding.navProject.setOnClickListener {
+            val action = HomeFragmentDirections.actionHomeFragmentToProjectFragment()
+            findNavController().navigate(action)
+        }
         binding.recyclerViewTemplates.layoutManager = GridLayoutManager(requireContext(), 2)
         binding.recyclerViewTemplates.adapter = itemAdapter
 

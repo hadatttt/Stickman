@@ -1,6 +1,5 @@
 package com.hadat.stickman.ui.home
 
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,15 +7,18 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
 import com.hadat.stickman.R
 import com.hadat.stickman.databinding.FragmentExportBinding
 import com.hadat.stickman.ui.utils.ExportUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class ExportFragment : Fragment() {
@@ -26,10 +28,8 @@ class ExportFragment : Fragment() {
 
     private val args: ExportFragmentArgs by navArgs()
 
-    private var selectedFormat: String = "mp4"
-    private var backgroundUrl: String = ""
-
-    private var bitmapPathList: List<String> = emptyList()
+    private val backgroundUrl: String by lazy { args.backgroundUrl ?: "" }
+    private val bitmapPathList: List<String> by lazy { args.bitmapPathList?.toList() ?: emptyList() }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -40,10 +40,19 @@ class ExportFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        bitmapPathList = args.bitmapPathList?.toList() ?: emptyList()
-        backgroundUrl = args.backgroundUrl ?: ""
+        super.onViewCreated(view, savedInstanceState)
 
-        // Load background preview bằng Glide (chỉ để preview)
+        ExportUtils.initialize(requireContext()) // Khởi tạo projectDao
+
+        // Xử lý nút back về HomeFragment
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val action = ExportFragmentDirections.actionExportFragmentToHomeFragment()
+                findNavController().navigate(action)
+            }
+        })
+
+        // Hiển thị ảnh nền
         if (backgroundUrl.isNotBlank()) {
             Glide.with(this)
                 .load(backgroundUrl)
@@ -55,14 +64,13 @@ class ExportFragment : Fragment() {
         }
 
         setupSpinners()
-        setupFormatSelection()
         setupBackgroundSelector()
         setupCreateButton()
     }
 
     private fun setupSpinners() {
         val aspectRatios = listOf("1:1", "16:9", "4:3", "3:4")
-        val frameRates = listOf("1 fps", "2 fps", "3 fps", "6 fps")
+        val frameRates = (1..30).map { "$it fps" }
 
         binding.spinnerAspectRatio.adapter = ArrayAdapter(
             requireContext(),
@@ -75,16 +83,6 @@ class ExportFragment : Fragment() {
             android.R.layout.simple_spinner_dropdown_item,
             frameRates
         )
-    }
-
-    private fun setupFormatSelection() {
-        binding.radioGroupFormat.setOnCheckedChangeListener { _, checkedId ->
-            selectedFormat = when (checkedId) {
-                R.id.radioGif -> "gif"
-                else -> "mp4"
-            }
-        }
-        binding.radioGroupFormat.check(R.id.radioMp4)
     }
 
     private fun setupBackgroundSelector() {
@@ -105,22 +103,23 @@ class ExportFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            val bitmapList = bitmapPathList.mapNotNull { path ->
-                val file = File(path)
-                if (file.exists()) {
-                    BitmapFactory.decodeFile(path)
-                } else null
-            }
+            lifecycleScope.launch {
+                val bitmapList = withContext(Dispatchers.IO) {
+                    bitmapPathList.mapNotNull { path ->
+                        val file = File(path)
+                        if (file.exists()) BitmapFactory.decodeFile(path) else null
+                    }
+                }
 
-            if (bitmapList.isEmpty()) {
-                Toast.makeText(requireContext(), "No valid frames found", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
+                if (bitmapList.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), "No valid frames found", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
 
-            // Gọi ExportUtils, truyền backgroundUrl (link ảnh) để tải ảnh nền
-            when (selectedFormat) {
-                "mp4" -> ExportUtils.exportToMp4(requireContext(), bitmapList, frameRate, projectName, backgroundUrl)
-                "gif" -> ExportUtils.exportToGif(requireContext(), bitmapList, frameRate, projectName, backgroundUrl)
+                // Mặc định xuất mp4
+                ExportUtils.exportToMp4(requireContext(), bitmapList, frameRate, projectName, backgroundUrl)
             }
         }
     }

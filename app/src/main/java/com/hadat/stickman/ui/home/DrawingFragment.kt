@@ -283,8 +283,8 @@ class DrawingFragment : Fragment() {
         binding.btnBack.setOnClickListener {
             // Save current drawing state before navigating back
             viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
-            Log.d("DrawingFragment", "Saved current drawing state before popBackStack")
-            findNavController().popBackStack()
+            val action = DrawingFragmentDirections.actionDrawingFragmentToHomeFragment()
+            findNavController().navigate(action)
         }
 
         binding.btnPreview.setOnClickListener {

@@ -74,36 +74,7 @@
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
                 android:src="@color/white" />
-
         </FrameLayout>
-
-        <!-- Format Selection -->
-        <TextView
-            android:text="Export Format"
-            android:textSize="16sp"
-            android:layout_marginTop="16dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <RadioGroup
-            android:id="@+id/radioGroupFormat"
-            android:orientation="horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
-
-            <RadioButton
-                android:id="@+id/radioMp4"
-                android:text="MP4"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-
-            <RadioButton
-                android:id="@+id/radioGif"
-                android:text="GIF"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp" />
-        </RadioGroup>
 
         <!-- Create Button -->
         <Button
