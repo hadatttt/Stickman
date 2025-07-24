@@ -32,7 +32,6 @@ object ExportUtils {
         ).build()
         projectDao = db.projectDao()
     }
-
     fun exportToMp4(
         context: Context,
         frames: List<Bitmap>,
@@ -74,34 +73,68 @@ object ExportUtils {
                 resolver.openOutputStream(uri)?.use { outputStream ->
                     val tempFile = File(context.cacheDir, fileName)
                     val muxer = MediaMuxer(tempFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-                    val videoTrackIndex = muxer.addTrack(codec.outputFormat)
-                    muxer.start()
+                    var trackIndex = -1
+                    var muxerStarted = false
 
                     val bufferInfo = MediaCodec.BufferInfo()
                     val frameIntervalNanos = 1_000_000_000L / frameRate
 
+                    var frameIndex = 0L
+                    val startTime = System.nanoTime()
+
                     frames.forEachIndexed { index, frame ->
                         val canvas = inputSurface.lockCanvas(null)
                         canvas.drawBitmap(scaledBackground, 0f, 0f, null)
+
                         val scaledFrame = if (frame.width != width || frame.height != height) {
                             Bitmap.createScaledBitmap(frame, width, height, true)
                         } else frame
+
                         canvas.drawBitmap(scaledFrame, 0f, 0f, null)
                         inputSurface.unlockCanvasAndPost(canvas)
+
                         if (scaledFrame != frame) scaledFrame.recycle()
 
-                        drainEncoder(codec, bufferInfo, muxer, videoTrackIndex, index, frameIntervalNanos)
+                        // Đợi để đảm bảo encoder xử lý frame trước
+                        Thread.sleep((1000L / frameRate).coerceAtLeast(15L))
                     }
 
-                    drainEncoder(codec, bufferInfo, muxer, videoTrackIndex, frames.size, frameIntervalNanos)
+                    // Báo hiệu không còn frame
+                    codec.signalEndOfInputStream()
+
+                    // Drain toàn bộ dữ liệu
+                    var outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 100_000)
+                    while (outputBufferIndex != MediaCodec.INFO_TRY_AGAIN_LATER) {
+                        if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                            if (muxerStarted) throw RuntimeException("Format changed twice")
+                            val newFormat = codec.outputFormat
+                            trackIndex = muxer.addTrack(newFormat)
+                            muxer.start()
+                            muxerStarted = true
+                        } else if (outputBufferIndex >= 0) {
+                            val encodedData = codec.getOutputBuffer(outputBufferIndex)
+                                ?: throw RuntimeException("Encoder output buffer $outputBufferIndex was null")
+
+                            if (bufferInfo.size > 0) {
+                                encodedData.position(bufferInfo.offset)
+                                encodedData.limit(bufferInfo.offset + bufferInfo.size)
+                                bufferInfo.presentationTimeUs = frameIndex * frameIntervalNanos / 1000
+                                frameIndex++
+                                muxer.writeSampleData(trackIndex, encodedData, bufferInfo)
+                            }
+
+                            codec.releaseOutputBuffer(outputBufferIndex, false)
+                        }
+                        outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 100_000)
+                    }
+
                     codec.stop()
                     codec.release()
                     muxer.stop()
                     muxer.release()
 
-                    tempFile.inputStream().use { input ->
-                        outputStream.write(input.readBytes())
-                    }
+                    // Copy từ file tạm ra MediaStore
+                    tempFile.inputStream().use { input -> outputStream.write(input.readBytes()) }
                     tempFile.delete()
                 } ?: throw Exception("Failed to open output stream")
 
@@ -115,7 +148,6 @@ object ExportUtils {
                     name = projectName,
                     videoUrl = uri.toString()
                 )
-                // Gọi hàm suspend insert đúng cách:
                 projectDao?.let { dao ->
                     withContext(Dispatchers.IO) {
                         dao.insert(project)
@@ -132,6 +164,7 @@ object ExportUtils {
             }
         }
     }
+
 
     private suspend fun generateProjectId(): Int {
         return projectDao?.getMaxId()?.let { (it ?: 0) + 1 } ?: 1

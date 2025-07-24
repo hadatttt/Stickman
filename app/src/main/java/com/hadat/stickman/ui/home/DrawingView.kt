@@ -113,8 +113,8 @@ class DrawingView @JvmOverloads constructor(
         if (mode == Mode.STICKER && newMode != Mode.STICKER && tempSticker != null && stickerBitmap != null) {
             commandHistory.add(StickerCommand(
                 stickerBitmap!!,
-                tempSticker!!.centerX,
-                tempSticker!!.centerY,
+                tempSticker!!.left,
+                tempSticker!!.top,
                 tempSticker!!.width,
                 tempSticker!!.height,
                 tempSticker!!.rotation
@@ -193,7 +193,7 @@ class DrawingView @JvmOverloads constructor(
                 is DrawPathCommand -> commandHistory.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
                 is ErasePathCommand -> commandHistory.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
                 is FillPathCommand -> commandHistory.add(FillPathCommand(Path(command.path), Paint(command.paint)))
-                is StickerCommand -> commandHistory.add(StickerCommand(command.bitmap, command.centerX, command.centerY, command.width, command.height, command.rotation))
+                is StickerCommand -> commandHistory.add(StickerCommand(command.bitmap, command.left, command.top, command.width, command.height, command.rotation))
             }
         }
         fillShapes.clear()
@@ -240,7 +240,7 @@ class DrawingView @JvmOverloads constructor(
             if (command is FillPathCommand) {
                 fillShapes.removeAll { it.first == command.path }
             } else if (command is StickerCommand) {
-                stickers.removeAll { it.centerX == command.centerX && it.centerY == command.centerY }
+                stickers.removeAll { it.left == command.left && it.top == command.top }
             }
             undoneCommands.add(command)
             redrawCanvas()
@@ -254,7 +254,7 @@ class DrawingView @JvmOverloads constructor(
             if (command is FillPathCommand) {
                 fillShapes.add(command.path to command.paint)
             } else if (command is StickerCommand) {
-                stickers.add(Sticker(command.bitmap, command.centerX, command.centerY, command.width, command.height, command.rotation))
+                stickers.add(Sticker(command.bitmap, command.left, command.top, command.width, command.height, command.rotation))
             }
             redrawCanvas()
         }
@@ -294,7 +294,7 @@ class DrawingView @JvmOverloads constructor(
                 is DrawPathCommand -> commandHistory.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
                 is ErasePathCommand -> commandHistory.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
                 is FillPathCommand -> commandHistory.add(FillPathCommand(Path(command.path), Paint(command.paint)))
-                is StickerCommand -> commandHistory.add(StickerCommand(command.bitmap, command.centerX, command.centerY, command.width, command.height, command.rotation))
+                is StickerCommand -> commandHistory.add(StickerCommand(command.bitmap, command.left, command.top, command.width, command.height, command.rotation))
             }
         }
 
@@ -304,7 +304,7 @@ class DrawingView @JvmOverloads constructor(
                 is DrawPathCommand -> undoneCommands.add(DrawPathCommand(Path(command.path), Paint(command.paint)))
                 is ErasePathCommand -> undoneCommands.add(ErasePathCommand(Path(command.path), Paint(command.paint)))
                 is FillPathCommand -> undoneCommands.add(FillPathCommand(Path(command.path), Paint(command.paint)))
-                is StickerCommand -> undoneCommands.add(StickerCommand(command.bitmap, command.centerX, command.centerY, command.width, command.height, command.rotation))
+                is StickerCommand -> undoneCommands.add(StickerCommand(command.bitmap, command.left, command.top, command.width, command.height, command.rotation))
             }
         }
 
@@ -315,7 +315,7 @@ class DrawingView @JvmOverloads constructor(
 
         stickers.clear()
         other.stickers.forEach { sticker ->
-            stickers.add(Sticker(sticker.bitmap, sticker.centerX, sticker.centerY, sticker.width, sticker.height, sticker.rotation))
+            stickers.add(Sticker(sticker.bitmap, sticker.left, sticker.top, sticker.width, sticker.height, sticker.rotation))
         }
 
         scaleFactor = other.scaleFactor
@@ -339,9 +339,8 @@ class DrawingView @JvmOverloads constructor(
         for (sticker in stickers) {
             val matrix = Matrix()
             matrix.postScale(sticker.width / sticker.bitmap.width.toFloat(), sticker.height / sticker.bitmap.height.toFloat())
-            matrix.postTranslate(-sticker.bitmap.width / 2f, -sticker.bitmap.height / 2f)
-            matrix.postRotate(sticker.rotation)
-            matrix.postTranslate(sticker.centerX, sticker.centerY)
+            matrix.postTranslate(sticker.left, sticker.top)
+            matrix.postRotate(sticker.rotation, sticker.left + sticker.width / 2f, sticker.top + sticker.height / 2f)
             bitmapCanvas?.drawBitmap(sticker.bitmap, matrix, null)
         }
         for (i in 0..commandHistory.currentIndex) {
@@ -353,9 +352,8 @@ class DrawingView @JvmOverloads constructor(
                 is StickerCommand -> {
                     val matrix = Matrix()
                     matrix.postScale(command.width / command.bitmap.width.toFloat(), command.height / command.bitmap.height.toFloat())
-                    matrix.postTranslate(-command.bitmap.width / 2f, -command.bitmap.height / 2f)
-                    matrix.postRotate(command.rotation)
-                    matrix.postTranslate(command.centerX, command.centerY)
+                    matrix.postTranslate(command.left, command.top)
+                    matrix.postRotate(command.rotation, command.left + command.width / 2f, command.top + command.height / 2f)
                     bitmapCanvas?.drawBitmap(command.bitmap, matrix, null)
                 }
             }
@@ -375,22 +373,17 @@ class DrawingView @JvmOverloads constructor(
             canvas.drawPath(currentPath, currentPaint)
         } else if (mode == Mode.STICKER && tempSticker != null && stickerBitmap != null) {
             val matrix = Matrix()
-            // Scale sticker dựa trên width/height so với bitmap gốc
             val scale = tempSticker!!.width / stickerBitmap!!.width.toFloat()
-            matrix.postScale(scale, scale) // Hình vuông nên scaleX = scaleY
-            // Dịch về tâm gốc để xoay quanh trung tâm
-            matrix.postTranslate(-stickerBitmap!!.width / 2f, -stickerBitmap!!.height / 2f)
-            // Xoay quanh tâm
-            matrix.postRotate(tempSticker!!.rotation)
-            // Dịch đến vị trí tâm
-            matrix.postTranslate(tempSticker!!.centerX, tempSticker!!.centerY)
+            matrix.postScale(scale, scale)
+            matrix.postTranslate(tempSticker!!.left, tempSticker!!.top)
+            matrix.postRotate(tempSticker!!.rotation, tempSticker!!.left + tempSticker!!.width / 2f, tempSticker!!.top + tempSticker!!.height / 2f)
             canvas.drawBitmap(stickerBitmap!!, matrix, null)
-            // Vẽ điểm tâm để gỡ lỗi
+            // Vẽ điểm góc trái trên cùng để gỡ lỗi
             val debugPaint = Paint().apply {
                 color = Color.RED
                 style = Paint.Style.FILL
             }
-            canvas.drawCircle(tempSticker!!.centerX, tempSticker!!.centerY, 5f, debugPaint)
+            canvas.drawCircle(tempSticker!!.left, tempSticker!!.top, 5f, debugPaint)
         }
         canvas.restore()
     }
@@ -427,13 +420,11 @@ class DrawingView @JvmOverloads constructor(
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (tempSticker != null) {
                     isScalingSticker = true
-                    isRotatingSticker = true
                     lastDistance = calculateDistance(x0, y0, x1, y1)
-                    lastAngle = calculateAngle(x0, y0, x1, y1)
                 }
             }
             MotionEvent.ACTION_MOVE -> {
-                if (isScalingSticker && isRotatingSticker && tempSticker != null) {
+                if (isScalingSticker && tempSticker != null) {
                     // Scale
                     val newDistance = calculateDistance(x0, y0, x1, y1)
                     if (lastDistance != 0f) {
@@ -444,27 +435,20 @@ class DrawingView @JvmOverloads constructor(
                         tempSticker?.height = tempSticker?.width!!
                         lastDistance = newDistance
                     }
-                    // Rotate
-                    val newAngle = calculateAngle(x0, y0, x1, y1)
-                    val deltaAngle = newAngle - lastAngle
-                    tempSticker?.rotation = (tempSticker?.rotation ?: 0f) + deltaAngle
-                    lastAngle = newAngle
-                    // Di chuyển tâm đến trung điểm hai ngón tay
-                    tempSticker?.centerX = (x0 + x1) / 2
-                    tempSticker?.centerY = (y0 + y1) / 2
+                    // Di chuyển góc trái trên cùng đến trung điểm hai ngón tay
+                    tempSticker?.left = (x0 + x1) / 2
+                    tempSticker?.top = (y0 + y1) / 2
                     invalidate()
                 }
             }
             MotionEvent.ACTION_POINTER_UP -> {
                 isScalingSticker = false
-                isRotatingSticker = false
                 lastDistance = 0f
-                lastAngle = 0f
                 if (tempSticker != null && stickerBitmap != null) {
                     commandHistory.add(StickerCommand(
                         stickerBitmap!!,
-                        tempSticker!!.centerX,
-                        tempSticker!!.centerY,
+                        tempSticker!!.left,
+                        tempSticker!!.top,
                         tempSticker!!.width,
                         tempSticker!!.height,
                         tempSticker!!.rotation
@@ -499,8 +483,8 @@ class DrawingView @JvmOverloads constructor(
                     startY = y
                     tempSticker = Sticker(
                         bitmap = stickerBitmap!!,
-                        centerX = x,
-                        centerY = y,
+                        left = x,
+                        top = y,
                         width = STICKER_SIZE,
                         height = STICKER_SIZE,
                         rotation = 0f
@@ -511,23 +495,28 @@ class DrawingView @JvmOverloads constructor(
             }
             MotionEvent.ACTION_MOVE -> {
                 if (isDraggingSticker && tempSticker != null) {
-                    tempSticker?.centerX = x
-                    tempSticker?.centerY = y
-                    // Kéo dãn tương tự hình vuông/hình tròn
-                    val dx = abs(x - startX)
-                    val dy = abs(y - startY)
-                    val size = maxOf(dx, dy) * 2 // Kích thước từ tâm ra hai phía
-                    tempSticker?.width = maxOf(size, MIN_STICKER_SIZE)
-                    tempSticker?.height = tempSticker?.width!! // Giữ hình vuông
+                    val dx = x - startX
+                    val dy = y - startY
+
+                    // Lấy kích thước chiều rộng và chiều cao theo dx và dy, giữ tối thiểu
+                    val width = maxOf(abs(dx), MIN_STICKER_SIZE)
+                    val height = maxOf(abs(dy), MIN_STICKER_SIZE)
+
+                    tempSticker?.width = width
+                    tempSticker?.height = height
+
+                    tempSticker?.left = startX
+                    tempSticker?.top = startY
                     invalidate()
                 }
             }
+
             MotionEvent.ACTION_UP -> {
                 if (isDraggingSticker && tempSticker != null && stickerBitmap != null) {
                     commandHistory.add(StickerCommand(
                         stickerBitmap!!,
-                        tempSticker!!.centerX,
-                        tempSticker!!.centerY,
+                        tempSticker!!.left,
+                        tempSticker!!.top,
                         tempSticker!!.width,
                         tempSticker!!.height,
                         tempSticker!!.rotation
@@ -696,19 +685,18 @@ class DrawingView @JvmOverloads constructor(
         override fun undo(canvas: Canvas) {}
     }
 
-    private class StickerCommand(val bitmap: Bitmap, val centerX: Float, val centerY: Float, val width: Float, val height: Float, val rotation: Float) : Command {
+    private class StickerCommand(val bitmap: Bitmap, val left: Float, val top: Float, val width: Float, val height: Float, val rotation: Float) : Command {
         override fun execute(canvas: Canvas) {
             val matrix = Matrix()
             matrix.postScale(width / bitmap.width.toFloat(), height / bitmap.height.toFloat())
-            matrix.postTranslate(-bitmap.width / 2f, -bitmap.height / 2f)
-            matrix.postRotate(rotation)
-            matrix.postTranslate(centerX, centerY)
+            matrix.postTranslate(left, top)
+            matrix.postRotate(rotation, left + width / 2f, top + height / 2f)
             canvas.drawBitmap(bitmap, matrix, null)
         }
         override fun undo(canvas: Canvas) {}
     }
 
-    private data class Sticker(val bitmap: Bitmap, var centerX: Float, var centerY: Float, var width: Float, var height: Float, var rotation: Float)
+    private data class Sticker(val bitmap: Bitmap, var left: Float, var top: Float, var width: Float, var height: Float, var rotation: Float)
 
     private inner class CommandHistory {
         private val commands = mutableListOf<Command>()
