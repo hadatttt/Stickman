@@ -9,10 +9,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.hadat.stickman.R
 import com.hadat.stickman.ui.model.ItemModel
-
 class ItemAdapter(
     private val itemList: MutableList<ItemModel>,
-    private val onItemClick: (ItemModel) -> Unit
+    private val onItemClick: (Array<String>) -> Unit  // truyền array thay vì list
 ) : RecyclerView.Adapter<ItemAdapter.ItemViewHolder>() {
 
     inner class ItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -24,21 +23,24 @@ class ItemAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_template, parent, false)  // đổi tên layout cho đúng
+            .inflate(R.layout.item_template, parent, false)
         return ItemViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
         val item = itemList[position]
         Glide.with(holder.itemView.context)
-            .load(item.imageUrl.first())
+            .load(item.imageUrl.firstOrNull()) // tránh crash nếu danh sách rỗng
             .centerCrop()
             .override(100, 100)
             .into(holder.imgThumb)
-        holder.txtFrame.text="Frame: ${item.frame}"
+        holder.txtFrame.text = "Frame: ${item.frame}"
         holder.txtTitle.text = item.title
         holder.txtLevel.text = "Level: ${item.level}"
-        holder.itemView.setOnClickListener { onItemClick(item) }
+
+        holder.itemView.setOnClickListener {
+            onItemClick(item.imageUrl.toTypedArray())  // truyền array thay vì list
+        }
     }
 
     override fun getItemCount(): Int = itemList.size

@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.widget.PopupWindow
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -23,6 +24,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.hadat.stickman.databinding.FragmentDrawingBinding
+import com.hadat.stickman.databinding.LayoutShapeDropdownBinding
 import com.hadat.stickman.ui.category.DrawingViewModel
 import com.hadat.stickman.ui.category.FrameAdapter
 import com.hadat.stickman.ui.model.FrameModel
@@ -41,6 +43,7 @@ class DrawingFragment : Fragment() {
     private lateinit var drawingView: DrawingView
     private lateinit var frameAdapter: FrameAdapter
     private lateinit var frameList: MutableList<FrameModel>
+    private var popupWindow: PopupWindow? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -54,15 +57,14 @@ class DrawingFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val args: DrawingFragmentArgs by navArgs()
-        val itemModel = args.itemModel
-        val frameCount = itemModel.frame
-        val imageUrls = itemModel.imageUrl
+        val imageUrls = args.imageUrls
+        val frameCount = imageUrls.size
         drawingView = binding.drawingView
 
-        // Pass the list of image URLs to the ViewModel
+        // Truyền danh sách URL ảnh vào ViewModel
         viewModel.setImageUrls(imageUrls)
 
-        // Load initial sticker for DrawingView
+        // Tải sticker ban đầu cho DrawingView
         val stickerUrl = "https://img.lovepik.com/free-png/20211119/lovepik-qingming-handwritten-style-png-image_401042234_wh1200.png"
         Glide.with(this@DrawingFragment)
             .asBitmap()
@@ -73,7 +75,7 @@ class DrawingFragment : Fragment() {
                 }
                 override fun onLoadCleared(placeholder: Drawable?) {}
                 override fun onLoadFailed(errorDrawable: Drawable?) {
-                    Log.e("DrawingFragment", "Failed to load sticker from URL")
+                    Log.e("DrawingFragment", "Không thể tải sticker từ URL")
                 }
             })
 
@@ -111,7 +113,7 @@ class DrawingFragment : Fragment() {
                     }
                     override fun onLoadFailed(errorDrawable: Drawable?) {
                         binding.backgroundImage.setImageDrawable(null)
-                        Log.e("DrawingFragment", "Failed to load background image for drawingId: $drawingId")
+                        Log.e("DrawingFragment", "Không thể tải ảnh nền cho drawingId: $drawingId")
                     }
                 })
         } else {
@@ -120,18 +122,18 @@ class DrawingFragment : Fragment() {
     }
 
     private fun setupFrameRecyclerView(frameCount: Int) {
-        // Initialize frameList from ViewModel to restore all frames
+        // Khởi tạo frameList từ ViewModel
         frameList = viewModel.getDrawingList().map { drawingState ->
             FrameModel(id = drawingState.id, previewBitmap = drawingState.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
         }.toMutableList()
 
-        // If frameList is empty and frameCount > 0, initialize with frameCount
+        // Nếu frameList rỗng và frameCount > 0, khởi tạo với frameCount
         if (frameList.isEmpty() && frameCount > 0) {
             frameList = (1..frameCount).map { id ->
                 val drawingState = viewModel.getDrawingList().find { it.id == id }
                 FrameModel(id = id, previewBitmap = drawingState?.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
             }.toMutableList()
-            // Ensure initial frames are added to ViewModel
+            // Đảm bảo các frame ban đầu được thêm vào ViewModel
             frameList.forEach { frame ->
                 if (!viewModel.getDrawingList().any { it.id == frame.id }) {
                     viewModel.addNewDrawing(frame.id)
@@ -139,12 +141,14 @@ class DrawingFragment : Fragment() {
             }
         }
 
-        frameAdapter = FrameAdapter(frameList) { drawingId ->
+        frameAdapter = FrameAdapter(frameList, { drawingId ->
             viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
             viewModel.switchDrawing(drawingId)
             loadBackgroundImage(drawingId)
-            Log.d("DrawingFragment", "Switched to frame: $drawingId")
-        }
+            Log.d("DrawingFragment", "Đã chuyển sang frame: $drawingId")
+        }, {
+            addNewFrame()
+        })
 
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
@@ -152,13 +156,13 @@ class DrawingFragment : Fragment() {
         }
 
         viewModel.drawingList.observe(viewLifecycleOwner) { drawingList ->
-            // Rebuild frameList to include all frames
+            // Cập nhật frameList để bao gồm tất cả frame
             frameList.clear()
             frameList.addAll(drawingList.map { drawingState ->
                 FrameModel(id = drawingState.id, previewBitmap = drawingState.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
             })
             frameAdapter.notifyDataSetChanged()
-            Log.d("DrawingFragment", "Drawing list updated, size: ${drawingList.size}")
+            Log.d("DrawingFragment", "Danh sách frame đã cập nhật, kích thước: ${drawingList.size}")
         }
     }
 
@@ -169,9 +173,18 @@ class DrawingFragment : Fragment() {
                     DrawingView.Mode.DRAW -> binding.btnBrush
                     DrawingView.Mode.ERASE -> binding.btnEraser
                     DrawingView.Mode.FILL -> binding.btnFill
-                    DrawingView.Mode.RECTANGLE -> binding.btnRectangle
-                    DrawingView.Mode.CIRCLE -> binding.btnCircle
-                    DrawingView.Mode.LINE -> binding.btnLine
+                    DrawingView.Mode.RECTANGLE -> {
+                        binding.btnShapes.setImageResource(android.R.drawable.ic_menu_crop)
+                        binding.btnShapes
+                    }
+                    DrawingView.Mode.CIRCLE -> {
+                        binding.btnShapes.setImageResource(android.R.drawable.ic_menu_view)
+                        binding.btnShapes
+                    }
+                    DrawingView.Mode.LINE -> {
+                        binding.btnShapes.setImageResource(android.R.drawable.ic_menu_zoom)
+                        binding.btnShapes
+                    }
                     DrawingView.Mode.STICKER -> binding.btnSticker
                 }
             )
@@ -191,7 +204,7 @@ class DrawingFragment : Fragment() {
         viewModel.currentDrawingId.observe(viewLifecycleOwner) { drawingId ->
             frameAdapter.updateSelectedPosition(drawingId)
             loadBackgroundImage(drawingId)
-            Log.d("DrawingFragment", "Current drawing ID changed to: $drawingId")
+            Log.d("DrawingFragment", "ID bản vẽ hiện tại thay đổi thành: $drawingId")
         }
     }
 
@@ -199,52 +212,87 @@ class DrawingFragment : Fragment() {
         binding.btnBrush.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.setMode(DrawingView.Mode.DRAW, viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
         }
 
         binding.btnEraser.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.setMode(DrawingView.Mode.ERASE, viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
         }
 
         binding.btnFill.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.setMode(DrawingView.Mode.FILL, viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
         }
 
-        binding.btnRectangle.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            viewModel.setMode(DrawingView.Mode.RECTANGLE, viewModel.currentDrawingId.value ?: 1)
-        }
-
-        binding.btnCircle.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            viewModel.setMode(DrawingView.Mode.CIRCLE, viewModel.currentDrawingId.value ?: 1)
-        }
-
-        binding.btnLine.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            viewModel.setMode(DrawingView.Mode.LINE, viewModel.currentDrawingId.value ?: 1)
+        binding.btnShapes.setOnClickListener { view ->
+            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            showShapeDropdown(view)
         }
 
         binding.btnSticker.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.setMode(DrawingView.Mode.STICKER, viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
         }
 
         binding.btnUndo.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.undo(viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
         }
 
         binding.btnRedo.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.redo(viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
         }
 
         binding.btnClear.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.clearDrawing(viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
         }
+    }
+
+    private fun showShapeDropdown(anchor: View) {
+        // Đóng popup hiện tại nếu có
+        popupWindow?.dismiss()
+
+        // Tạo layout dropdown
+        val dropdownBinding = LayoutShapeDropdownBinding.inflate(LayoutInflater.from(requireContext()))
+        val popupView = dropdownBinding.root
+
+        // Tạo PopupWindow
+        popupWindow = PopupWindow(
+            popupView,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            isOutsideTouchable = true
+            setBackgroundDrawable(null) // Không cần nền nếu muốn trong suốt
+            elevation = 4f
+        }
+
+        // Thiết lập click listener cho các nút trong dropdown
+        dropdownBinding.btnDropdownRectangle.setOnClickListener {
+            viewModel.setMode(DrawingView.Mode.RECTANGLE, viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
+        }
+        dropdownBinding.btnDropdownCircle.setOnClickListener {
+            viewModel.setMode(DrawingView.Mode.CIRCLE, viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
+        }
+        dropdownBinding.btnDropdownLine.setOnClickListener {
+            viewModel.setMode(DrawingView.Mode.LINE, viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
+        }
+
+        // Hiển thị PopupWindow bên dưới anchor
+        popupWindow?.showAsDropDown(anchor)
     }
 
     private fun setupColorAndSizeControls() {
@@ -281,10 +329,11 @@ class DrawingFragment : Fragment() {
 
     private fun setupBottomControls() {
         binding.btnBack.setOnClickListener {
-            // Save current drawing state before navigating back
+            // Lưu trạng thái bản vẽ hiện tại trước khi quay lại
             viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
             val action = DrawingFragmentDirections.actionDrawingFragmentToHomeFragment()
             findNavController().navigate(action)
+            popupWindow?.dismiss()
         }
 
         binding.btnPreview.setOnClickListener {
@@ -298,6 +347,7 @@ class DrawingFragment : Fragment() {
             val bitmapPathList = saveBitmapsToCache(requireContext(), bitmapList)
             val action = DrawingFragmentDirections.actionDrawingFragmentToPreviewFragment(bitmapPathList.toTypedArray())
             findNavController().navigate(action)
+            popupWindow?.dismiss()
         }
 
         binding.btnFinish.setOnClickListener {
@@ -311,26 +361,22 @@ class DrawingFragment : Fragment() {
             val bitmapPathList = saveBitmapsToCache(requireContext(), bitmapList)
             val action = DrawingFragmentDirections.actionDrawingFragmentToExportFragment(bitmapPathList.toTypedArray())
             findNavController().navigate(action)
-        }
-
-        binding.imgAddFrame.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            addNewFrame()
+            popupWindow?.dismiss()
         }
     }
 
     private fun addNewFrame() {
-        // Save current drawing state before adding new frame
+        // Lưu trạng thái bản vẽ hiện tại trước khi thêm frame mới
         viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
         val newFrameId = (frameList.maxByOrNull { it.id }?.id ?: 0) + 1
         val newFrame = FrameModel(id = newFrameId, previewBitmap = null)
         frameList.add(newFrame)
         viewModel.addNewDrawing(newFrameId)
         frameAdapter.notifyItemInserted(frameList.size - 1)
-        binding.recyclerView.scrollToPosition(frameList.size - 1)
+        binding.recyclerView.scrollToPosition(frameList.size) // Cuộn đến mục "Thêm Frame"
         viewModel.switchDrawing(newFrameId)
         loadBackgroundImage(newFrameId)
-        Log.d("DrawingFragment", "Added new frame with ID: $newFrameId, frameList size: ${frameList.size}")
+        Log.d("DrawingFragment", "Đã thêm frame mới với ID: $newFrameId, kích thước frameList: ${frameList.size}")
     }
 
     private fun updateButtonStates(selectedButton: View) {
@@ -338,9 +384,7 @@ class DrawingFragment : Fragment() {
             binding.btnBrush,
             binding.btnEraser,
             binding.btnFill,
-            binding.btnRectangle,
-            binding.btnCircle,
-            binding.btnLine,
+            binding.btnShapes,
             binding.btnSticker
         ).forEach {
             it.isSelected = it == selectedButton
@@ -353,7 +397,7 @@ class DrawingFragment : Fragment() {
         bitmaps.forEachIndexed { index, bitmap ->
             try {
                 if (bitmap == null) {
-                    // Create a default white bitmap if null
+                    // Tạo bitmap trắng mặc định nếu null
                     val defaultBitmap = Bitmap.createBitmap(
                         drawingView.width, drawingView.height, Bitmap.Config.ARGB_8888
                     )
@@ -365,7 +409,7 @@ class DrawingFragment : Fragment() {
                         out.flush()
                     }
                     paths.add(file.absolutePath)
-                    Log.d("DrawingFragment", "Saved default bitmap for frame $index")
+                    Log.d("DrawingFragment", "Đã lưu bitmap mặc định cho frame $index")
                 } else {
                     val file = File(context.cacheDir, "drawing_frame_$index.png")
                     FileOutputStream(file).use { out ->
@@ -373,10 +417,10 @@ class DrawingFragment : Fragment() {
                         out.flush()
                     }
                     paths.add(file.absolutePath)
-                    Log.d("DrawingFragment", "Saved bitmap for frame $index")
+                    Log.d("DrawingFragment", "Đã lưu bitmap cho frame $index")
                 }
             } catch (e: IOException) {
-                Log.e("DrawingFragment", "Error saving bitmap for frame $index: ${e.message}")
+                Log.e("DrawingFragment", "Lỗi khi lưu bitmap cho frame $index: ${e.message}")
                 e.printStackTrace()
             }
         }
@@ -384,9 +428,10 @@ class DrawingFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        // Save current drawing state before destroying view
+        // Lưu trạng thái bản vẽ hiện tại trước khi hủy view
         viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
-        Log.d("DrawingFragment", "Saved current drawing state in onDestroyView")
+        popupWindow?.dismiss()
+        Log.d("DrawingFragment", "Đã lưu trạng thái bản vẽ hiện tại trong onDestroyView")
         super.onDestroyView()
         _binding = null
     }

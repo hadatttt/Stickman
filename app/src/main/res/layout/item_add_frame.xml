@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImageView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/imgAddFrame"
+    android:layout_width="100dp"
+    android:layout_height="100dp"
+    android:background="@drawable/bg_frame_selected"
+    android:contentDescription="Thêm frame"
+    android:scaleType="center"
+    android:src="@android:drawable/ic_menu_add"
+    app:tint="#000000" />

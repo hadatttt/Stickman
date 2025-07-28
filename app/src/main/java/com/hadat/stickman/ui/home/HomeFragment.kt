@@ -50,13 +50,8 @@ class HomeFragment : Fragment() {
             findNavController().navigate(action)
         }
         binding.navAdd.setOnClickListener {
-            val itemNew = ItemModel(
-                imageUrl = listOf(""),
-                title = "NewProject",
-                level = "none",
-                category = "none",
-                frame = 1
-            )
+            val itemNew = arrayOf("")
+
             val action = HomeFragmentDirections.actionHomeFragmentToDrawingFragment(itemNew)
             findNavController().navigate(action)
         }

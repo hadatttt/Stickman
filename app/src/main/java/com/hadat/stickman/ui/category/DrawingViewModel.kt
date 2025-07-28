@@ -44,7 +44,7 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     private var drawingView: DrawingView? = null
     private var backgroundImageView: ImageView? = null
     private val drawings = mutableListOf<DrawingState>()
-    private var imageUrls: List<String> = emptyList()
+    private var imageUrls: Array<String> = emptyArray()
 
     data class DrawingState(
         val id: Int,
@@ -61,7 +61,7 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
         val translateY: Float
     )
 
-    fun setImageUrls(urls: List<String>) {
+    fun setImageUrls(urls: Array<String>) {
         imageUrls = urls
     }
 

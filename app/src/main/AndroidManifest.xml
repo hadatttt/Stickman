@@ -3,11 +3,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-    <!-- Quyền đọc ghi bộ nhớ ngoài -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <application
         android:requestLegacyExternalStorage="true"
         android:allowBackup="true"
@@ -22,12 +20,25 @@
         <activity
             android:name=".ui.main.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Stickman">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+        android:theme="@style/Theme.Stickman">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
 
-    </application>
-</manifest>
+    <!-- KHAI BÁO DỊCH VỤ HÌNH NỀN ĐỘNG -->
+    <service
+        android:name=".ui.utils.VideoWallpaperService"
+        android:exported="true"
+        android:permission="android.permission.BIND_WALLPAPER">
+        <intent-filter>
+            <action android:name="android.service.wallpaper.WallpaperService" />
+        </intent-filter>
+        <meta-data
+            android:name="android.service.wallpaper"
+            android:resource="@xml/live_wallpaper" />
+    </service>
+
+</application>
+    </manifest>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/rootLayout"
@@ -30,117 +31,87 @@
             app:layout_constraintTop_toTopOf="parent"
             app:tint="#000000" />
 
-        <HorizontalScrollView
-            android:id="@+id/toolScroll"
+        <!-- Thay HorizontalScrollView bằng LinearLayout cố định -->
+        <LinearLayout
+            android:id="@+id/toolIcons"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:overScrollMode="ifContentScrolls"
-            android:scrollbars="none"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
             app:layout_constraintStart_toEndOf="@id/btnBack"
             app:layout_constraintEnd_toStartOf="@id/btnUndo"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent">>
-            <LinearLayout
-                android:id="@+id/toolIcons"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp">
+            app:layout_constraintBottom_toBottomOf="parent">
 
+            <ImageButton
+                android:id="@+id/btnBrush"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Bút vẽ"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_edit"
+                app:tint="#000000" />
 
-                <!-- Các nút công cụ -->
-                <ImageButton
-                    android:id="@+id/btnBrush"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Bút vẽ"
-                    android:scaleType="centerInside"
-                    android:src="@android:drawable/ic_menu_edit"
-                    app:tint="#000000" />
+            <ImageButton
+                android:id="@+id/btnEraser"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Tẩy"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_delete"
+                app:tint="#000000" />
 
-                <ImageButton
-                    android:id="@+id/btnEraser"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Tẩy"
-                    android:scaleType="centerInside"
-                    android:src="@android:drawable/ic_menu_delete"
-                    app:tint="#000000" />
+            <!-- Nút Shapes thay thế Rectangle, Circle, Line -->
+            <ImageButton
+                android:id="@+id/btnShapes"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Hình dạng"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_crop"
+                app:tint="#000000" />
 
-                <ImageButton
-                    android:id="@+id/btnRectangle"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Hình chữ nhật"
-                    android:scaleType="centerInside"
-                    android:src="@android:drawable/ic_menu_crop"
-                    app:tint="#000000" />
+            <ImageButton
+                android:id="@+id/btnSticker"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Sticker"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_add"
+                app:tint="#000000" />
 
-                <ImageButton
-                    android:id="@+id/btnCircle"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Hình tròn"
-                    android:scaleType="centerInside"
-                    android:src="@android:drawable/ic_menu_view"
-                    app:tint="#000000" />
+            <ImageButton
+                android:id="@+id/btnFill"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Đổ màu"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_gallery"
+                app:tint="#000000" />
 
-                <ImageButton
-                    android:id="@+id/btnLine"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Đường thẳng"
-                    android:scaleType="centerInside"
-                    android:src="@android:drawable/ic_menu_zoom"
-                    app:tint="#000000" />
-
-                <ImageButton
-                    android:id="@+id/btnSticker"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Sticker"
-                    android:scaleType="centerInside"
-                    android:src="@android:drawable/ic_menu_add"
-                    app:tint="#000000" />
-
-                <ImageButton
-                    android:id="@+id/btnFill"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Đổ màu"
-                    android:scaleType="centerInside"
-                    android:src="@android:drawable/ic_menu_gallery"
-                    app:tint="#000000" />
-
-                <ImageButton
-                    android:id="@+id/btnClear"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Xóa toàn bộ canvas"
-                    android:scaleType="centerInside"
-                    android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    app:tint="#000000" />
-            </LinearLayout>
-        </HorizontalScrollView>
+            <ImageButton
+                android:id="@+id/btnClear"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Xóa toàn bộ canvas"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                app:tint="#000000" />
+        </LinearLayout>
 
         <ImageButton
             android:id="@+id/btnUndo"
@@ -291,26 +262,14 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
-        android:layout_width="224dp"
-        android:layout_height="116dp"
-        android:layout_marginBottom="16dp"
+        android:layout_width="396dp"
+        android:layout_height="112dp"
+        android:layout_marginBottom="12dp"
         android:clipToPadding="false"
         android:paddingHorizontal="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:listitem="@layout/item_frame" />
-
-    <ImageView
-        android:id="@+id/imgAddFrame"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:layout_marginBottom="32dp"
-        android:scaleType="center"
-        android:visibility="visible"
-        android:background="@drawable/bg_frame_selected"
-        android:src="@android:drawable/ic_menu_add"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

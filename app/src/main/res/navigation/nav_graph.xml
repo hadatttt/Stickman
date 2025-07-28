@@ -27,8 +27,8 @@
             android:id="@+id/action_DrawingFragment_to_HomeFragment"
             app:destination="@id/HomeFragment" />
         <argument
-            android:name="itemModel"
-            app:argType="com.hadat.stickman.ui.model.ItemModel"
+            android:name="imageUrls"
+            app:argType="string[]"
             app:nullable="false" />
         <action
             android:id="@+id/action_DrawingFragment_to_previewFragment"
