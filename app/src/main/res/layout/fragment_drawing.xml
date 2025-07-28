@@ -100,7 +100,16 @@
                 android:scaleType="centerInside"
                 android:src="@android:drawable/ic_menu_gallery"
                 app:tint="#000000" />
-
+            <ImageButton
+                android:id="@+id/btnColorPicker"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Chọn màu"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_manage"
+                app:tint="#000000" />
             <ImageButton
                 android:id="@+id/btnClear"
                 android:layout_width="0dp"

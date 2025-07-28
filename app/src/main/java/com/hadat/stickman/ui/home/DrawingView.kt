@@ -8,7 +8,7 @@ import android.view.View
 import kotlin.math.*
 
 /**
- * View tùy chỉnh để vẽ với hỗ trợ nhiều chế độ, hình dạng, undo/redo và cử chỉ đa chạm.
+ * View tùy chỉnh để vẽ với hỗ trợ nhiều chế độ, hình dạng, undo/redo, cử chỉ đa chạm và lấy màu.
  * Nền được quản lý bởi layout phía sau, DrawingView trong suốt.
  */
 class DrawingView @JvmOverloads constructor(
@@ -18,9 +18,9 @@ class DrawingView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     enum class Mode {
-        DRAW, ERASE, FILL, RECTANGLE, CIRCLE, LINE, STICKER
+        DRAW, ERASE, FILL, RECTANGLE, CIRCLE, LINE, STICKER, COLOR_PICKER
     }
-
+    var onColorPicked: ((Int) -> Unit)? = null
     private var bitmap: Bitmap? = null
     private var bitmapCanvas: Canvas? = null
     private var currentPaint = createPaint(DEFAULT_STROKE_COLOR, DEFAULT_STROKE_WIDTH)
@@ -53,12 +53,29 @@ class DrawingView @JvmOverloads constructor(
     // Sticker Bitmap
     private var stickerBitmap: Bitmap? = null
 
+    // Color Picker
+    private var isColorPicking = false
+    private var colorPickerCenterX = 0f
+    private var colorPickerCenterY = 0f
+    private var pickedColor = DEFAULT_STROKE_COLOR
+    private var colorPickerRadius = 50f
+    private var colorPickerMagnification = 3f
+    private var colorPickerPaint = Paint().apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = Color.BLACK
+        isAntiAlias = true
+    }
+    private var colorPickerBitmap: Bitmap? = null
+    private var colorPickerCanvas: Canvas? = null
+
     companion object {
         private const val DEFAULT_STROKE_COLOR = Color.BLACK
         private const val DEFAULT_STROKE_WIDTH = 10f
         private const val DEFAULT_ERASER_SIZE = 50f
         private const val DEFAULT_BRUSH_ALPHA = 255
         private const val TOUCH_TOLERANCE = 4f
+        private const val COLOR_PICKER_LONG_PRESS_TIMEOUT = 500L
     }
 
     init {
@@ -67,6 +84,8 @@ class DrawingView @JvmOverloads constructor(
         isFocusableInTouchMode = true
         setBackgroundColor(Color.TRANSPARENT)
         initializeBitmap()
+        initializeColorPickerBitmap()
+        isLongClickable = true
     }
 
     private fun initializeBitmap() {
@@ -75,6 +94,15 @@ class DrawingView @JvmOverloads constructor(
         bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
         bitmapCanvas = Canvas(bitmap!!)
         bitmapCanvas?.drawColor(Color.TRANSPARENT)
+    }
+
+    private fun initializeColorPickerBitmap() {
+        colorPickerBitmap = Bitmap.createBitmap(
+            (colorPickerRadius * 2 * colorPickerMagnification).toInt(),
+            (colorPickerRadius * 2 * colorPickerMagnification).toInt(),
+            Bitmap.Config.ARGB_8888
+        )
+        colorPickerCanvas = Canvas(colorPickerBitmap!!)
     }
 
     fun setStickerBitmap(bitmap: Bitmap?) {
@@ -92,6 +120,7 @@ class DrawingView @JvmOverloads constructor(
             bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             bitmapCanvas = Canvas(bitmap!!)
             bitmapCanvas?.drawColor(Color.TRANSPARENT)
+            initializeColorPickerBitmap()
             if (mode == Mode.STICKER) {
                 currentStickerRect = null
             }
@@ -101,6 +130,7 @@ class DrawingView @JvmOverloads constructor(
 
     fun setMode(newMode: Mode) {
         mode = newMode
+        isColorPicking = false
         currentPaint = createPaint(
             color = strokeColor,
             strokeWidth = if (newMode == Mode.ERASE) eraserSize else strokeWidth,
@@ -315,13 +345,40 @@ class DrawingView @JvmOverloads constructor(
         canvas.scale(scaleFactor, scaleFactor)
         canvas.translate(translateX / scaleFactor, translateY / scaleFactor)
         bitmap?.let { canvas.drawBitmap(it, 0f, 0f, null) }
-        if (mode != Mode.ERASE && mode != Mode.STICKER) {
+        if (mode != Mode.ERASE && mode != Mode.STICKER && mode != Mode.COLOR_PICKER) {
             currentShapePath?.let { canvas.drawPath(it, currentPaint) }
             canvas.drawPath(currentPath, currentPaint)
         } else if (mode == Mode.STICKER && currentStickerRect != null && stickerBitmap != null) {
             canvas.drawBitmap(stickerBitmap!!, null, currentStickerRect!!, null)
         }
         canvas.restore()
+
+        // Vẽ vòng tròn phóng to khi chọn màu
+        if (isColorPicking && colorPickerBitmap != null) {
+            colorPickerCanvas?.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+            bitmap?.let {
+                val srcRect = RectF(
+                    colorPickerCenterX - colorPickerRadius,
+                    colorPickerCenterY - colorPickerRadius,
+                    colorPickerCenterX + colorPickerRadius,
+                    colorPickerCenterY + colorPickerRadius
+                )
+                val dstRect = RectF(0f, 0f, colorPickerBitmap!!.width.toFloat(), colorPickerBitmap!!.height.toFloat())
+                colorPickerCanvas?.save()
+                colorPickerCanvas?.scale(colorPickerMagnification, colorPickerMagnification)
+                colorPickerCanvas?.translate(-colorPickerCenterX + colorPickerRadius, -colorPickerCenterY + colorPickerRadius)
+                colorPickerCanvas?.drawBitmap(it, 0f, 0f, null)
+                colorPickerCanvas?.restore()
+            }
+            canvas.drawBitmap(colorPickerBitmap!!, colorPickerCenterX * scaleFactor + translateX - colorPickerBitmap!!.width / 2,
+                colorPickerCenterY * scaleFactor + translateY - colorPickerBitmap!!.height / 2, null)
+            canvas.drawCircle(
+                colorPickerCenterX * scaleFactor + translateX,
+                colorPickerCenterY * scaleFactor + translateY,
+                colorPickerRadius * colorPickerMagnification,
+                colorPickerPaint
+            )
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -329,7 +386,7 @@ class DrawingView @JvmOverloads constructor(
         val y = (event.y - translateY) / scaleFactor
         when (event.pointerCount) {
             1 -> handleSingleTouch(event, x, y)
-            2 -> isMultiTouch = true // Có thể thêm logic đa chạm nếu cần
+            2 -> isMultiTouch = true
         }
         return true
     }
@@ -341,6 +398,7 @@ class DrawingView @JvmOverloads constructor(
             Mode.ERASE -> handleErase(event, x, y)
             Mode.FILL -> if (event.action == MotionEvent.ACTION_DOWN) handleFill(x, y)
             Mode.RECTANGLE, Mode.CIRCLE, Mode.LINE, Mode.STICKER -> handleShapeDrawing(event, x, y)
+            Mode.COLOR_PICKER -> handleColorPicker(event, x, y)
         }
     }
 
@@ -437,6 +495,38 @@ class DrawingView @JvmOverloads constructor(
                 }
                 invalidate()
             }
+        }
+    }
+
+    private fun handleColorPicker(event: MotionEvent, x: Float, y: Float) {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                colorPickerCenterX = x
+                colorPickerCenterY = y
+                isColorPicking = true
+                pickColor(x, y)
+                invalidate()
+            }
+            MotionEvent.ACTION_MOVE -> {
+                colorPickerCenterX = x
+                colorPickerCenterY = y
+                pickColor(x, y)
+                invalidate()
+            }
+            MotionEvent.ACTION_UP -> {
+                isColorPicking = false
+                setColor(pickedColor)
+                onColorPicked?.invoke(pickedColor)
+                invalidate()
+            }
+        }
+    }
+
+    private fun pickColor(x: Float, y: Float) {
+        bitmap?.let {
+            val pixelX = x.coerceIn(0f, it.width - 1f).toInt()
+            val pixelY = y.coerceIn(0f, it.height - 1f).toInt()
+            pickedColor = it.getPixel(pixelX, pixelY)
         }
     }
 

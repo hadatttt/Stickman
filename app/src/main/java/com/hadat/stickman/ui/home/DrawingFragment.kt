@@ -61,10 +61,8 @@ class DrawingFragment : Fragment() {
         val frameCount = imageUrls.size
         drawingView = binding.drawingView
 
-        // Truyền danh sách URL ảnh vào ViewModel
         viewModel.setImageUrls(imageUrls)
 
-        // Tải sticker ban đầu cho DrawingView
         val stickerUrl = "https://img.lovepik.com/free-png/20211119/lovepik-qingming-handwritten-style-png-image_401042234_wh1200.png"
         Glide.with(this@DrawingFragment)
             .asBitmap()
@@ -86,7 +84,9 @@ class DrawingFragment : Fragment() {
                 loadBackgroundImage(1)
             }
         })
-
+        drawingView.onColorPicked = { color ->
+            viewModel.setColor(color, viewModel.currentDrawingId.value ?: 1)
+        }
         setupFrameRecyclerView(frameCount)
         setupObservers()
         setupToolbar()
@@ -122,18 +122,15 @@ class DrawingFragment : Fragment() {
     }
 
     private fun setupFrameRecyclerView(frameCount: Int) {
-        // Khởi tạo frameList từ ViewModel
         frameList = viewModel.getDrawingList().map { drawingState ->
             FrameModel(id = drawingState.id, previewBitmap = drawingState.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
         }.toMutableList()
 
-        // Nếu frameList rỗng và frameCount > 0, khởi tạo với frameCount
         if (frameList.isEmpty() && frameCount > 0) {
             frameList = (1..frameCount).map { id ->
                 val drawingState = viewModel.getDrawingList().find { it.id == id }
                 FrameModel(id = id, previewBitmap = drawingState?.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
             }.toMutableList()
-            // Đảm bảo các frame ban đầu được thêm vào ViewModel
             frameList.forEach { frame ->
                 if (!viewModel.getDrawingList().any { it.id == frame.id }) {
                     viewModel.addNewDrawing(frame.id)
@@ -156,7 +153,6 @@ class DrawingFragment : Fragment() {
         }
 
         viewModel.drawingList.observe(viewLifecycleOwner) { drawingList ->
-            // Cập nhật frameList để bao gồm tất cả frame
             frameList.clear()
             frameList.addAll(drawingList.map { drawingState ->
                 FrameModel(id = drawingState.id, previewBitmap = drawingState.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
@@ -174,18 +170,19 @@ class DrawingFragment : Fragment() {
                     DrawingView.Mode.ERASE -> binding.btnEraser
                     DrawingView.Mode.FILL -> binding.btnFill
                     DrawingView.Mode.RECTANGLE -> {
-                        binding.btnShapes.setImageResource(android.R.drawable.ic_menu_crop)
+                        binding.btnShapes.setImageResource(com.hadat.stickman.R.drawable.bg1)
                         binding.btnShapes
                     }
                     DrawingView.Mode.CIRCLE -> {
-                        binding.btnShapes.setImageResource(android.R.drawable.ic_menu_view)
+                        binding.btnShapes.setImageResource(com.hadat.stickman.R.drawable.bg2)
                         binding.btnShapes
                     }
                     DrawingView.Mode.LINE -> {
-                        binding.btnShapes.setImageResource(android.R.drawable.ic_menu_zoom)
+                        binding.btnShapes.setImageResource(com.hadat.stickman.R.drawable.bg1)
                         binding.btnShapes
                     }
                     DrawingView.Mode.STICKER -> binding.btnSticker
+                    DrawingView.Mode.COLOR_PICKER -> binding.btnColorPicker
                 }
             )
             val (size, max) = viewModel.getSizeForMode()
@@ -194,10 +191,12 @@ class DrawingFragment : Fragment() {
         }
 
         viewModel.color.observe(viewLifecycleOwner) { color ->
+            Log.d("DrawingFragment", "Observer nhận màu mới: $color")
             binding.colorPreview.setBackgroundColor(color)
         }
 
         viewModel.opacity.observe(viewLifecycleOwner) { opacity ->
+            Log.d("DrawingFragment", "Observer nhận opacity mới: $opacity")
             binding.seekBarOpacity.progress = opacity
         }
 
@@ -238,6 +237,12 @@ class DrawingFragment : Fragment() {
             popupWindow?.dismiss()
         }
 
+        binding.btnColorPicker.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            viewModel.setMode(DrawingView.Mode.COLOR_PICKER, viewModel.currentDrawingId.value ?: 1)
+            popupWindow?.dismiss()
+        }
+
         binding.btnUndo.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.undo(viewModel.currentDrawingId.value ?: 1)
@@ -258,14 +263,11 @@ class DrawingFragment : Fragment() {
     }
 
     private fun showShapeDropdown(anchor: View) {
-        // Đóng popup hiện tại nếu có
         popupWindow?.dismiss()
 
-        // Tạo layout dropdown
         val dropdownBinding = LayoutShapeDropdownBinding.inflate(LayoutInflater.from(requireContext()))
         val popupView = dropdownBinding.root
 
-        // Tạo PopupWindow
         popupWindow = PopupWindow(
             popupView,
             ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -273,11 +275,10 @@ class DrawingFragment : Fragment() {
             true
         ).apply {
             isOutsideTouchable = true
-            setBackgroundDrawable(null) // Không cần nền nếu muốn trong suốt
+            setBackgroundDrawable(null)
             elevation = 4f
         }
 
-        // Thiết lập click listener cho các nút trong dropdown
         dropdownBinding.btnDropdownRectangle.setOnClickListener {
             viewModel.setMode(DrawingView.Mode.RECTANGLE, viewModel.currentDrawingId.value ?: 1)
             popupWindow?.dismiss()
@@ -291,7 +292,6 @@ class DrawingFragment : Fragment() {
             popupWindow?.dismiss()
         }
 
-        // Hiển thị PopupWindow bên dưới anchor
         popupWindow?.showAsDropDown(anchor)
     }
 
@@ -301,7 +301,9 @@ class DrawingFragment : Fragment() {
             ColorPickerDialog.Builder(requireContext())
                 .setTitle("Chọn màu")
                 .setPositiveButton("Chọn", ColorEnvelopeListener { envelope, _ ->
+                    Log.d("DrawingFragment", "Màu được chọn từ ColorPicker: ${envelope.color}")
                     viewModel.setColor(envelope.color, viewModel.currentDrawingId.value ?: 1)
+                    binding.colorPreview.setBackgroundColor(envelope.color) // Cập nhật trực tiếp
                 })
                 .setNegativeButton("Hủy") { dialog, _ -> dialog.dismiss() }
                 .attachAlphaSlideBar(true)
@@ -329,7 +331,6 @@ class DrawingFragment : Fragment() {
 
     private fun setupBottomControls() {
         binding.btnBack.setOnClickListener {
-            // Lưu trạng thái bản vẽ hiện tại trước khi quay lại
             viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
             val action = DrawingFragmentDirections.actionDrawingFragmentToHomeFragment()
             findNavController().navigate(action)
@@ -366,14 +367,13 @@ class DrawingFragment : Fragment() {
     }
 
     private fun addNewFrame() {
-        // Lưu trạng thái bản vẽ hiện tại trước khi thêm frame mới
         viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
         val newFrameId = (frameList.maxByOrNull { it.id }?.id ?: 0) + 1
         val newFrame = FrameModel(id = newFrameId, previewBitmap = null)
         frameList.add(newFrame)
         viewModel.addNewDrawing(newFrameId)
         frameAdapter.notifyItemInserted(frameList.size - 1)
-        binding.recyclerView.scrollToPosition(frameList.size) // Cuộn đến mục "Thêm Frame"
+        binding.recyclerView.scrollToPosition(frameList.size)
         viewModel.switchDrawing(newFrameId)
         loadBackgroundImage(newFrameId)
         Log.d("DrawingFragment", "Đã thêm frame mới với ID: $newFrameId, kích thước frameList: ${frameList.size}")
@@ -385,7 +385,8 @@ class DrawingFragment : Fragment() {
             binding.btnEraser,
             binding.btnFill,
             binding.btnShapes,
-            binding.btnSticker
+            binding.btnSticker,
+            binding.btnColorPicker
         ).forEach {
             it.isSelected = it == selectedButton
             it.alpha = if (it.isSelected) 1f else 0.5f
@@ -397,7 +398,6 @@ class DrawingFragment : Fragment() {
         bitmaps.forEachIndexed { index, bitmap ->
             try {
                 if (bitmap == null) {
-                    // Tạo bitmap trắng mặc định nếu null
                     val defaultBitmap = Bitmap.createBitmap(
                         drawingView.width, drawingView.height, Bitmap.Config.ARGB_8888
                     )
@@ -428,7 +428,6 @@ class DrawingFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        // Lưu trạng thái bản vẽ hiện tại trước khi hủy view
         viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
         popupWindow?.dismiss()
         Log.d("DrawingFragment", "Đã lưu trạng thái bản vẽ hiện tại trong onDestroyView")

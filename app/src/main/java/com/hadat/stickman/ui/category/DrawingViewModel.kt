@@ -1,4 +1,3 @@
-
 package com.hadat.stickman.ui.category
 
 import android.app.Application
@@ -82,6 +81,11 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
             val existingDrawing = drawings.find { it.id == drawingId }
             if (existingDrawing != null) {
                 view.setDrawingState(existingDrawing)
+                _mode.value = existingDrawing.mode
+                _color.value = existingDrawing.strokeColor
+                _strokeSize.value = existingDrawing.strokeWidth
+                _eraserSize.value = existingDrawing.eraserSize
+                _opacity.value = (existingDrawing.brushAlpha / 2.55).toInt()
                 view.invalidate()
             } else {
                 view.setMode(_mode.value!!)
@@ -131,13 +135,11 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun addNewDrawing(frameId: Int) {
-        // Check if the drawing already exists to avoid duplicates
         if (drawings.any { it.id == frameId }) return
 
-        // Create a new DrawingState with default values
         val newState = DrawingState(
             id = frameId,
-            bitmap = null, // New frame starts with no bitmap
+            bitmap = null,
             commands = emptyList(),
             fillShapes = emptyList(),
             strokeColor = _color.value ?: Color.BLACK,
@@ -227,6 +229,7 @@ class DrawingViewModel(application: Application) : AndroidViewModel(application)
     fun getSizeForMode(): Pair<Int, Int> {
         return when (_mode.value) {
             DrawingView.Mode.ERASE -> Pair(_eraserSize.value!!.toInt(), 100)
+            DrawingView.Mode.COLOR_PICKER -> Pair(_strokeSize.value!!.toInt(), 50) // Color picker uses stroke size
             else -> Pair(_strokeSize.value!!.toInt(), 50)
         }
     }
