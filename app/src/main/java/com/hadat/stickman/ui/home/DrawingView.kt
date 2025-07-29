@@ -353,7 +353,7 @@ class DrawingView @JvmOverloads constructor(
         }
         canvas.restore()
 
-        // Vẽ vòng tròn phóng to khi chọn màu
+        // Draw magnified circle for color picker
         if (isColorPicking && colorPickerBitmap != null) {
             colorPickerCanvas?.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
             bitmap?.let {
@@ -370,13 +370,47 @@ class DrawingView @JvmOverloads constructor(
                 colorPickerCanvas?.drawBitmap(it, 0f, 0f, null)
                 colorPickerCanvas?.restore()
             }
-            canvas.drawBitmap(colorPickerBitmap!!, colorPickerCenterX * scaleFactor + translateX - colorPickerBitmap!!.width / 2,
-                colorPickerCenterY * scaleFactor + translateY - colorPickerBitmap!!.height / 2, null)
+
+            // Clip to a circular region
+            val clipPath = Path().apply {
+                addCircle(
+                    colorPickerCenterX * scaleFactor + translateX,
+                    colorPickerCenterY * scaleFactor + translateY,
+                    colorPickerRadius * colorPickerMagnification,
+                    Path.Direction.CW
+                )
+            }
+            canvas.save()
+            canvas.clipPath(clipPath)
+
+            // Draw the magnified bitmap
+            canvas.drawBitmap(
+                colorPickerBitmap!!,
+                colorPickerCenterX * scaleFactor + translateX - colorPickerBitmap!!.width / 2,
+                colorPickerCenterY * scaleFactor + translateY - colorPickerBitmap!!.height / 2,
+                null
+            )
+            canvas.restore()
+
+            // Draw the outer circle border
             canvas.drawCircle(
                 colorPickerCenterX * scaleFactor + translateX,
                 colorPickerCenterY * scaleFactor + translateY,
                 colorPickerRadius * colorPickerMagnification,
                 colorPickerPaint
+            )
+
+            // Draw a small circle at the center of the color picker
+            val smallCirclePaint = Paint().apply {
+                color = Color.WHITE // You can customize the color
+                style = Paint.Style.FILL
+                isAntiAlias = true
+            }
+            canvas.drawCircle(
+                colorPickerCenterX * scaleFactor + translateX,
+                colorPickerCenterY * scaleFactor + translateY,
+                5f, // Small radius for the center circle
+                smallCirclePaint
             )
         }
     }
