@@ -130,16 +130,13 @@ class DrawingFragment : Fragment() {
             StickerModel(1, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png", 1),
             StickerModel(2, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/relax-removebg-preview.png", 1),
             StickerModel(3, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png", 1),
-
             StickerModel(5, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png", 2),
             StickerModel(6, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/relax-removebg-preview.png", 2),
             StickerModel(7, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png", 2),
             StickerModel(8, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/stay-home-removebg-preview.png", 2),
-
             StickerModel(9, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png", 3),
             StickerModel(11, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png", 3),
             StickerModel(12, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/stay-home-removebg-preview.png", 3),
-
             StickerModel(13, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png", 4),
             StickerModel(14, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/relax-removebg-preview.png", 4),
             StickerModel(15, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png", 4),
@@ -151,10 +148,10 @@ class DrawingFragment : Fragment() {
             // Load sticker bitmap and pass to DrawingView
             Glide.with(this@DrawingFragment)
                 .asBitmap()
-                .load(sticker.imageUrl) // Use sticker.url
+                .load(sticker.imageUrl)
                 .into(object : CustomTarget<Bitmap>() {
                     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        drawingView.setStickerBitmap(resource) // Pass selected sticker to DrawingView
+                        drawingView.setStickerBitmap(resource)
                         Toast.makeText(requireContext(), "Selected sticker: ${sticker.id}", Toast.LENGTH_SHORT).show()
                     }
 
@@ -170,12 +167,12 @@ class DrawingFragment : Fragment() {
         // Setup RecyclerView sticker
         binding.recyclerStickers.apply {
             adapter = stickerAdapter
-            layoutManager = GridLayoutManager(requireContext(), 2) // 2 cột, cuộn dọc
+            layoutManager = GridLayoutManager(requireContext(), 2)
             setHasFixedSize(true)
-            visibility = View.GONE // Initially invisible
+            visibility = View.GONE
         }
 
-          val categoryAdapter = StickerCategoryAdapter(categoryList) { selectedCategoryId ->
+        val categoryAdapter = StickerCategoryAdapter(categoryList) { selectedCategoryId ->
             val filtered = allStickers.filter { it.categoryId == selectedCategoryId }
             stickerAdapter.updateData(filtered)
         }
@@ -185,7 +182,7 @@ class DrawingFragment : Fragment() {
             adapter = categoryAdapter
             layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false)
             setHasFixedSize(true)
-            visibility = View.GONE // Initially invisible
+            visibility = View.GONE
         }
 
         // Bắt đầu chọn danh mục đầu tiên (nếu có)
@@ -215,7 +212,6 @@ class DrawingFragment : Fragment() {
         }
 
         frameAdapter = FrameAdapter(frameList, { drawingId ->
-            viewModel.saveCurrentDrawingState(viewModel.currentDrawingId.value ?: 1)
             viewModel.switchDrawing(drawingId)
             loadBackgroundImage(drawingId)
             Log.d("DrawingFragment", "Đã chuyển sang frame: $drawingId")
@@ -280,6 +276,11 @@ class DrawingFragment : Fragment() {
             frameAdapter.updateSelectedPosition(drawingId)
             loadBackgroundImage(drawingId)
             Log.d("DrawingFragment", "ID bản vẽ hiện tại thay đổi thành: $drawingId")
+        }
+
+        viewModel.similarityPercentage.observe(viewLifecycleOwner) { similarity ->
+            binding.txtAccuracy.text = "Độ chính xác: $similarity%"
+            Log.d("DrawingFragment", "Độ chính xác cập nhật: $similarity%")
         }
     }
 

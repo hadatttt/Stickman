@@ -15,8 +15,8 @@ class HomeViewModel : ViewModel() {
     val allItems = listOf(
         ItemModel(
             imageUrl = listOf(
-                "https://cdn-icons-png.flaticon.com/512/1216/1216733.png",
-                "https://cdn-icons-png.flaticon.com/512/1216/1216729.png"
+                "https://inmiligo.com/wp-content/uploads/2024/05/sticker-cute-la-chona-27.jpg",
+                "https://inmiligo.com/wp-content/uploads/2024/05/sticker-cute-la-chona-29.jpg"
             ),
             title = "Stickman Battle",
             level = "Easy",

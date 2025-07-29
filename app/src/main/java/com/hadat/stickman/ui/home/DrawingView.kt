@@ -20,6 +20,7 @@ class DrawingView @JvmOverloads constructor(
     enum class Mode {
         DRAW, ERASE, FILL, RECTANGLE, CIRCLE, LINE, STICKER, COLOR_PICKER
     }
+    var onBitmapUpdated: ((Bitmap?) -> Unit)? = null
     var onColorPicked: ((Int) -> Unit)? = null
     private var bitmap: Bitmap? = null
     private var bitmapCanvas: Canvas? = null
@@ -89,12 +90,13 @@ class DrawingView @JvmOverloads constructor(
     }
 
     private fun initializeBitmap() {
-        val targetWidth = if (width > 0) width else 300
-        val targetHeight = if (height > 0) height else 300
-        bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+        val targetSize = if (width > 0 && height > 0) min(width, height) else 300
+        bitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
         bitmapCanvas = Canvas(bitmap!!)
         bitmapCanvas?.drawColor(Color.TRANSPARENT)
     }
+
+
 
     private fun initializeColorPickerBitmap() {
         colorPickerBitmap = Bitmap.createBitmap(
@@ -116,8 +118,9 @@ class DrawingView @JvmOverloads constructor(
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w > 0 && h > 0) {
+            val size = min(w, h)
             bitmap?.recycle()
-            bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             bitmapCanvas = Canvas(bitmap!!)
             bitmapCanvas?.drawColor(Color.TRANSPARENT)
             initializeColorPickerBitmap()
@@ -341,7 +344,13 @@ class DrawingView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        // Tính toán offset để căn giữa bitmap vuông
+        val bitmapSize = bitmap?.width?.toFloat() ?: 0f
+        val offsetX = (width - bitmapSize) / 2
+        val offsetY = (height - bitmapSize) / 2
+
         canvas.save()
+        canvas.translate(offsetX, offsetY) // Thêm dòng này để dịch chuyển canvas
         canvas.scale(scaleFactor, scaleFactor)
         canvas.translate(translateX / scaleFactor, translateY / scaleFactor)
         bitmap?.let { canvas.drawBitmap(it, 0f, 0f, null) }
@@ -454,6 +463,7 @@ class DrawingView @JvmOverloads constructor(
                 commandHistory.add(DrawPathCommand(currentPath, currentPaint))
                 undoneCommands.clear()
                 currentPath = Path()
+                notifyBitmapUpdated()
                 invalidate()
             }
         }
@@ -477,6 +487,7 @@ class DrawingView @JvmOverloads constructor(
                 commandHistory.add(ErasePathCommand(currentPath, currentPaint))
                 undoneCommands.clear()
                 currentPath = Path()
+                notifyBitmapUpdated()
                 invalidate()
             }
         }
@@ -519,11 +530,13 @@ class DrawingView @JvmOverloads constructor(
                     ))
                     undoneCommands.clear()
                     currentStickerRect = null
+                    notifyBitmapUpdated()
                 } else {
                     currentShapePath?.let {
                         bitmapCanvas?.drawPath(it, currentPaint)
                         commandHistory.add(DrawPathCommand(it, currentPaint))
                         undoneCommands.clear()
+                        notifyBitmapUpdated()
                     }
                     currentShapePath = null
                 }
@@ -577,6 +590,7 @@ class DrawingView @JvmOverloads constructor(
             bitmapCanvas?.drawPath(targetPath.first, paintFill)
             commandHistory.add(FillPathCommand(targetPath.first, paintFill))
             undoneCommands.clear()
+            notifyBitmapUpdated()
             invalidate()
         }
     }
@@ -654,6 +668,10 @@ class DrawingView @JvmOverloads constructor(
         }
         override fun undo(canvas: Canvas) {}
     }
+    private fun notifyBitmapUpdated() {
+        onBitmapUpdated?.invoke(getBitmap())
+    }
+
 
     private inner class CommandHistory {
         private val commands = mutableListOf<Command>()
