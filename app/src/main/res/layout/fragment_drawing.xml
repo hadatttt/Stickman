@@ -80,17 +80,6 @@
                 app:tint="#000000" />
 
             <ImageButton
-                android:id="@+id/btnSticker"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Sticker"
-                android:scaleType="centerInside"
-                android:src="@android:drawable/ic_menu_add"
-                app:tint="#000000" />
-
-            <ImageButton
                 android:id="@+id/btnFill"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
@@ -110,6 +99,18 @@
                 android:scaleType="centerInside"
                 android:src="@android:drawable/ic_menu_manage"
                 app:tint="#000000" />
+
+            <ImageButton
+                android:id="@+id/btnSticker"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Sticker"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_add"
+                app:tint="#000000" />
+
             <ImageButton
                 android:id="@+id/btnClear"
                 android:layout_width="0dp"
@@ -179,7 +180,7 @@
             android:layout_marginEnd="8dp"
             android:max="50"
             android:min="1"
-            android:progress="10"
+            android:progress="30"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/colorPreview"
             app:layout_constraintTop_toTopOf="@id/colorPreview" />
@@ -209,6 +210,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/textOpacity"
             app:layout_constraintTop_toTopOf="@id/textOpacity" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <ImageView
@@ -280,5 +282,41 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:listitem="@layout/item_frame" />
+
+    <androidx.recyclerview.widget.RecyclerView
+
+        android:id="@+id/recyclerStickerCategory"
+        android:layout_width="70dp"
+        android:layout_height="210dp"
+        android:layout_marginTop="128dp"
+        android:paddingHorizontal="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.73"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:listitem="@layout/item_sticker_category" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerStickers"
+        android:layout_width="140dp"
+        android:layout_height="210dp"
+        android:layout_marginTop="128dp"
+        android:paddingHorizontal="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.346"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:listitem="@layout/item_sticker" />
+
+    <TextView
+        android:id="@+id/txtAccuracy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="144dp"
+        android:text="0%"
+        android:textSize="20dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

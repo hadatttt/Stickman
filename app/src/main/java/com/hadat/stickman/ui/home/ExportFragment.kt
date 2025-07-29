@@ -42,9 +42,9 @@ class ExportFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        ExportUtils.initialize(requireContext()) // Khởi tạo projectDao
+        ExportUtils.initialize(requireContext()) // Initialize projectDao
 
-        // Xử lý nút back về HomeFragment
+        // Handle back press to return to HomeFragment
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 val action = ExportFragmentDirections.actionExportFragmentToHomeFragment()
@@ -52,7 +52,7 @@ class ExportFragment : Fragment() {
             }
         })
 
-        // Hiển thị ảnh nền
+        // Display background image
         if (backgroundUrl.isNotBlank()) {
             Glide.with(this)
                 .load(backgroundUrl)
@@ -97,6 +97,7 @@ class ExportFragment : Fragment() {
             val projectName = binding.editTextProjectName.text.toString().ifBlank { "MyProject" }
             val frameRate = binding.spinnerFrameRate.selectedItem.toString()
                 .replace(" fps", "").toIntOrNull() ?: 1
+            val aspectRatio = binding.spinnerAspectRatio.selectedItem.toString()
 
             if (bitmapPathList.isEmpty()) {
                 Toast.makeText(requireContext(), "No frames to export", Toast.LENGTH_SHORT).show()
@@ -118,8 +119,8 @@ class ExportFragment : Fragment() {
                     return@launch
                 }
 
-                // Mặc định xuất mp4
-                ExportUtils.exportToMp4(requireContext(), bitmapList, frameRate, projectName, backgroundUrl)
+                // Export to mp4 with aspect ratio
+                ExportUtils.exportToMp4(requireContext(), bitmapList, frameRate, projectName, backgroundUrl, aspectRatio)
             }
         }
     }

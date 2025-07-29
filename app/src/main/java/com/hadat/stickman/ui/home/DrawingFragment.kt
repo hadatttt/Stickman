@@ -19,15 +19,21 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import com.hadat.stickman.R
 import com.hadat.stickman.databinding.FragmentDrawingBinding
 import com.hadat.stickman.databinding.LayoutShapeDropdownBinding
+import com.hadat.stickman.model.StickerCategoryModel
+import com.hadat.stickman.model.StickerModel
 import com.hadat.stickman.ui.category.DrawingViewModel
 import com.hadat.stickman.ui.category.FrameAdapter
 import com.hadat.stickman.ui.model.FrameModel
+import com.hadat.stickman.ui.sticker.StickerAdapter
+import com.hadat.stickman.ui.sticker.StickerCategoryAdapter
 import com.skydoves.colorpickerview.ColorPickerDialog
 import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener
 import java.io.File
@@ -63,19 +69,8 @@ class DrawingFragment : Fragment() {
 
         viewModel.setImageUrls(imageUrls)
 
-        val stickerUrl = "https://img.lovepik.com/free-png/20211119/lovepik-qingming-handwritten-style-png-image_401042234_wh1200.png"
-        Glide.with(this@DrawingFragment)
-            .asBitmap()
-            .load(stickerUrl)
-            .into(object : CustomTarget<Bitmap>() {
-                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                    drawingView.setStickerBitmap(resource)
-                }
-                override fun onLoadCleared(placeholder: Drawable?) {}
-                override fun onLoadFailed(errorDrawable: Drawable?) {
-                    Log.e("DrawingFragment", "Không thể tải sticker từ URL")
-                }
-            })
+        // Initialize RecyclerViews for stickers
+        setupRecyclerViews()
 
         drawingView.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
@@ -121,6 +116,87 @@ class DrawingFragment : Fragment() {
         }
     }
 
+    // Setup sticker RecyclerViews
+    private fun setupRecyclerViews() {
+        // Danh sách danh mục sticker
+        val categoryList = listOf(
+            StickerCategoryModel(1, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png"),
+            StickerCategoryModel(2, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/relax-removebg-preview.png"),
+            StickerCategoryModel(3, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png"),
+            StickerCategoryModel(4, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/stay-home-removebg-preview.png")
+        )
+
+        val allStickers = listOf(
+            StickerModel(1, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png", 1),
+            StickerModel(2, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/relax-removebg-preview.png", 1),
+            StickerModel(3, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png", 1),
+
+            StickerModel(5, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png", 2),
+            StickerModel(6, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/relax-removebg-preview.png", 2),
+            StickerModel(7, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png", 2),
+            StickerModel(8, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/stay-home-removebg-preview.png", 2),
+
+            StickerModel(9, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png", 3),
+            StickerModel(11, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png", 3),
+            StickerModel(12, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/stay-home-removebg-preview.png", 3),
+
+            StickerModel(13, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/elf-removebg-preview.png", 4),
+            StickerModel(14, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/relax-removebg-preview.png", 4),
+            StickerModel(15, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/santa-claus-removebg-preview.png", 4),
+            StickerModel(16, "https://raw.githubusercontent.com/hadatttt/Data/main/Sticker/stay-home-removebg-preview.png", 4)
+        )
+
+        // Khởi tạo adapter sticker
+        val stickerAdapter = StickerAdapter(emptyList()) { sticker ->
+            // Load sticker bitmap and pass to DrawingView
+            Glide.with(this@DrawingFragment)
+                .asBitmap()
+                .load(sticker.imageUrl) // Use sticker.url
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        drawingView.setStickerBitmap(resource) // Pass selected sticker to DrawingView
+                        Toast.makeText(requireContext(), "Selected sticker: ${sticker.id}", Toast.LENGTH_SHORT).show()
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {}
+
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        Log.e("DrawingFragment", "Không thể tải sticker từ URL: ${sticker.imageUrl}")
+                        Toast.makeText(requireContext(), "Failed to load sticker", Toast.LENGTH_SHORT).show()
+                    }
+                })
+        }
+
+        // Setup RecyclerView sticker
+        binding.recyclerStickers.apply {
+            adapter = stickerAdapter
+            layoutManager = GridLayoutManager(requireContext(), 2) // 2 cột, cuộn dọc
+            setHasFixedSize(true)
+            visibility = View.GONE // Initially invisible
+        }
+
+          val categoryAdapter = StickerCategoryAdapter(categoryList) { selectedCategoryId ->
+            val filtered = allStickers.filter { it.categoryId == selectedCategoryId }
+            stickerAdapter.updateData(filtered)
+        }
+
+        // Setup RecyclerView danh mục
+        binding.recyclerStickerCategory.apply {
+            adapter = categoryAdapter
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false)
+            setHasFixedSize(true)
+            visibility = View.GONE // Initially invisible
+        }
+
+        // Bắt đầu chọn danh mục đầu tiên (nếu có)
+        if (categoryList.isNotEmpty()) {
+            val firstCategoryId = categoryList.first().id
+            val filtered = allStickers.filter { it.categoryId == firstCategoryId }
+            stickerAdapter.updateData(filtered)
+        }
+    }
+
+    // Setup frame RecyclerView
     private fun setupFrameRecyclerView(frameCount: Int) {
         frameList = viewModel.getDrawingList().map { drawingState ->
             FrameModel(id = drawingState.id, previewBitmap = drawingState.bitmap?.copy(Bitmap.Config.ARGB_8888, true))
@@ -234,6 +310,10 @@ class DrawingFragment : Fragment() {
         binding.btnSticker.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             viewModel.setMode(DrawingView.Mode.STICKER, viewModel.currentDrawingId.value ?: 1)
+            // Toggle RecyclerViews visibility
+            val isVisible = binding.recyclerStickers.visibility == View.VISIBLE
+            binding.recyclerStickers.visibility = if (isVisible) View.GONE else View.VISIBLE
+            binding.recyclerStickerCategory.visibility = if (isVisible) View.GONE else View.VISIBLE
             popupWindow?.dismiss()
         }
 
@@ -303,7 +383,7 @@ class DrawingFragment : Fragment() {
                 .setPositiveButton("Chọn", ColorEnvelopeListener { envelope, _ ->
                     Log.d("DrawingFragment", "Màu được chọn từ ColorPicker: ${envelope.color}")
                     viewModel.setColor(envelope.color, viewModel.currentDrawingId.value ?: 1)
-                    binding.colorPreview.setBackgroundColor(envelope.color) // Cập nhật trực tiếp
+                    binding.colorPreview.setBackgroundColor(envelope.color)
                 })
                 .setNegativeButton("Hủy") { dialog, _ -> dialog.dismiss() }
                 .attachAlphaSlideBar(true)
@@ -390,6 +470,12 @@ class DrawingFragment : Fragment() {
         ).forEach {
             it.isSelected = it == selectedButton
             it.alpha = if (it.isSelected) 1f else 0.5f
+        }
+
+        // Hide RecyclerViews for non-sticker modes
+        if (selectedButton != binding.btnSticker) {
+            binding.recyclerStickers.visibility = View.GONE
+            binding.recyclerStickerCategory.visibility = View.GONE
         }
     }
 

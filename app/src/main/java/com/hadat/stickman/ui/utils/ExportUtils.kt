@@ -23,7 +23,7 @@ object ExportUtils {
 
     private var projectDao: com.hadat.stickman.ui.database.ProjectDao? = null
 
-    // Gọi hàm này 1 lần trước khi sử dụng export
+    // Initialize database
     fun initialize(context: Context) {
         val db = androidx.room.Room.databaseBuilder(
             context.applicationContext,
@@ -32,18 +32,22 @@ object ExportUtils {
         ).build()
         projectDao = db.projectDao()
     }
+
     fun exportToMp4(
         context: Context,
         frames: List<Bitmap>,
         frameRate: Int,
         projectName: String,
-        backgroundUrl: String? = null
+        backgroundUrl: String? = null,
+        aspectRatio: String
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 validateInput(frames, frameRate)
 
-                val (width, height) = frames[0].let { it.width to it.height }
+                // Parse aspect ratio
+                val (aspectWidth, aspectHeight) = parseAspectRatio(aspectRatio)
+                val (width, height) = calculateOutputDimensions(frames[0].width, frames[0].height, aspectWidth, aspectHeight)
                 val backgroundBitmap = loadBackgroundBitmap(context, backgroundUrl, width, height)
                 val scaledBackground = Bitmap.createScaledBitmap(backgroundBitmap, width, height, true)
 
@@ -83,26 +87,29 @@ object ExportUtils {
                     val startTime = System.nanoTime()
 
                     frames.forEachIndexed { index, frame ->
-                        val canvas = inputSurface.lockCanvas(null)
+                        val outputBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        val canvas = Canvas(outputBitmap)
                         canvas.drawBitmap(scaledBackground, 0f, 0f, null)
 
-                        val scaledFrame = if (frame.width != width || frame.height != height) {
-                            Bitmap.createScaledBitmap(frame, width, height, true)
-                        } else frame
+                        // Scale and center the frame
+                        val scaledFrame = scaleAndCenterFrame(frame, width, height, aspectWidth, aspectHeight)
+                        canvas.drawBitmap(scaledFrame, (width - scaledFrame.width) / 2f, (height - scaledFrame.height) / 2f, null)
 
-                        canvas.drawBitmap(scaledFrame, 0f, 0f, null)
-                        inputSurface.unlockCanvasAndPost(canvas)
+                        val surfaceCanvas = inputSurface.lockCanvas(null)
+                        surfaceCanvas.drawBitmap(outputBitmap, 0f, 0f, null)
+                        inputSurface.unlockCanvasAndPost(surfaceCanvas)
 
-                        if (scaledFrame != frame) scaledFrame.recycle()
+                        outputBitmap.safeRecycle()
+                        if (scaledFrame != frame) scaledFrame.safeRecycle()
 
-                        // Đợi để đảm bảo encoder xử lý frame trước
+                        // Wait to ensure encoder processes the frame
                         Thread.sleep((1000L / frameRate).coerceAtLeast(15L))
                     }
 
-                    // Báo hiệu không còn frame
+                    // Signal end of input
                     codec.signalEndOfInputStream()
 
-                    // Drain toàn bộ dữ liệu
+                    // Drain encoder
                     var outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 100_000)
                     while (outputBufferIndex != MediaCodec.INFO_TRY_AGAIN_LATER) {
                         if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
@@ -133,7 +140,7 @@ object ExportUtils {
                     muxer.stop()
                     muxer.release()
 
-                    // Copy từ file tạm ra MediaStore
+                    // Copy from temp file to MediaStore
                     tempFile.inputStream().use { input -> outputStream.write(input.readBytes()) }
                     tempFile.delete()
                 } ?: throw Exception("Failed to open output stream")
@@ -142,7 +149,7 @@ object ExportUtils {
                 scaledBackground.safeRecycle()
                 inputSurface.release()
 
-                // Lưu vào DB
+                // Save to database
                 val project = ProjectEntity(
                     id = generateProjectId(),
                     name = projectName,
@@ -165,7 +172,6 @@ object ExportUtils {
         }
     }
 
-
     private suspend fun generateProjectId(): Int {
         return projectDao?.getMaxId()?.let { (it ?: 0) + 1 } ?: 1
     }
@@ -174,6 +180,59 @@ object ExportUtils {
         if (frames.isEmpty()) throw IllegalArgumentException("Frame list is empty")
         if (frameRate <= 0) throw IllegalArgumentException("Invalid frame rate")
         if (frameRate > 60) throw IllegalArgumentException("Frame rate too high, maximum is 60")
+    }
+
+    private fun parseAspectRatio(aspectRatio: String): Pair<Int, Int> {
+        return when (aspectRatio) {
+            "1:1" -> Pair(1, 1)
+            "16:9" -> Pair(16, 9)
+            "4:3" -> Pair(4, 3)
+            "3:4" -> Pair(3, 4)
+            else -> Pair(1, 1) // Default to 1:1 if invalid
+        }
+    }
+
+    private fun calculateOutputDimensions(
+        inputWidth: Int,
+        inputHeight: Int,
+        aspectWidth: Int,
+        aspectHeight: Int
+    ): Pair<Int, Int> {
+        val targetRatio = aspectWidth.toFloat() / aspectHeight
+        val inputRatio = inputWidth.toFloat() / inputHeight
+
+        return if (targetRatio > inputRatio) {
+            // Fit to width, adjust height
+            val newHeight = (inputWidth / targetRatio).toInt()
+            Pair(inputWidth, newHeight)
+        } else {
+            // Fit to height, adjust width
+            val newWidth = (inputHeight * targetRatio).toInt()
+            Pair(newWidth, inputHeight)
+        }
+    }
+
+    private fun scaleAndCenterFrame(
+        frame: Bitmap,
+        targetWidth: Int,
+        targetHeight: Int,
+        aspectWidth: Int,
+        aspectHeight: Int
+    ): Bitmap {
+        val targetRatio = aspectWidth.toFloat() / aspectHeight
+        val frameRatio = frame.width.toFloat() / frame.height
+
+        val (scaledWidth, scaledHeight) = if (targetRatio > frameRatio) {
+            // Fit to width
+            val newHeight = (frame.width / targetRatio).toInt()
+            Pair(frame.width, newHeight)
+        } else {
+            // Fit to height
+            val newWidth = (frame.height * targetRatio).toInt()
+            Pair(newWidth, frame.height)
+        }
+
+        return Bitmap.createScaledBitmap(frame, scaledWidth, scaledHeight, true)
     }
 
     private fun loadBackgroundBitmap(context: Context, backgroundUrl: String?, width: Int, height: Int): Bitmap {
@@ -202,26 +261,6 @@ object ExportUtils {
             pixels > 1920 * 1080 -> 8_000_000
             pixels > 1280 * 720 -> 4_000_000
             else -> 2_000_000
-        }
-    }
-
-    private fun drainEncoder(
-        codec: MediaCodec,
-        bufferInfo: MediaCodec.BufferInfo,
-        muxer: MediaMuxer,
-        videoTrackIndex: Int,
-        frameIndex: Int,
-        frameIntervalNanos: Long
-    ) {
-        var outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 100_000)
-        while (outputBufferIndex >= 0) {
-            val outputBuffer = codec.getOutputBuffer(outputBufferIndex)
-            if (outputBuffer != null && bufferInfo.size > 0) {
-                bufferInfo.presentationTimeUs = frameIndex * frameIntervalNanos / 1000
-                muxer.writeSampleData(videoTrackIndex, outputBuffer, bufferInfo)
-            }
-            codec.releaseOutputBuffer(outputBufferIndex, false)
-            outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 100_000)
         }
     }
 

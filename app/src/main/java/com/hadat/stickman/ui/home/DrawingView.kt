@@ -71,7 +71,7 @@ class DrawingView @JvmOverloads constructor(
 
     companion object {
         private const val DEFAULT_STROKE_COLOR = Color.BLACK
-        private const val DEFAULT_STROKE_WIDTH = 10f
+        private const val DEFAULT_STROKE_WIDTH = 30f
         private const val DEFAULT_ERASER_SIZE = 50f
         private const val DEFAULT_BRUSH_ALPHA = 255
         private const val TOUCH_TOLERANCE = 4f

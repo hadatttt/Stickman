@@ -8,7 +8,7 @@ import com.hadat.stickman.ui.model.ItemModel
 class HomeViewModel : ViewModel() {
 
     private val _categories = listOf(
-        "Hot", "Funny", "Action", "Romance", "Horror", "Adventure", "Sport", "History", "Sci-fi", "Kids"
+        "All","Hot", "Funny", "Action", "Romance", "Horror", "Adventure", "Sport", "History", "Sci-fi", "Kids"
     )
     val categories: List<String> = _categories
 

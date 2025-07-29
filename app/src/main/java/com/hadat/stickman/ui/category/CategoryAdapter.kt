@@ -31,11 +31,11 @@ class CategoryAdapter(
 
         val context = holder.itemView.context
         if (position == selectedPosition) {
-            holder.txtCategory.setTextColor(ContextCompat.getColor(context, R.color.white))
-            // holder.txtCategory.setBackgroundResource(R.drawable.bg_category_selected)
+//            holder.txtCategory.setTextColor(ContextCompat.getColor(context, R.color.white))
+             holder.txtCategory.setBackgroundResource(R.drawable.bg_frame_selected)
         } else {
-            holder.txtCategory.setTextColor(ContextCompat.getColor(context, R.color.black))
-            // holder.txtCategory.setBackgroundResource(R.drawable.bg_category_unselected)
+//            holder.txtCategory.setTextColor(ContextCompat.getColor(context, R.color.black))
+//             holder.txtCategory.setBackgroundResource(R.drawable.bg_category_unselected)
         }
 
         holder.itemView.setOnClickListener {
